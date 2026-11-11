@@ -8,7 +8,11 @@ updates:
     directory: /backend
     schedule:
       interval: weekly
-  - package-ecosystem: docker
+  - package-ecosystem: uv
     directory: /backend
     schedule:
       interval: weekly
+    groups:
+      # One PR per week for all Python dependencies instead of one PR per package.
+      python-deps:
+        patterns: ["*"]
