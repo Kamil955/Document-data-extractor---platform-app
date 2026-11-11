@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# The workflow only reads the repository, so the token gets the minimum permission.
+permissions:
+  contents: read
+
+# A new push to the same branch cancels the older run, which saves minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    # A real Postgres next to the job, so migrations and DB tests run against the real thing.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: contract
+          POSTGRES_PASSWORD: contract
+          POSTGRES_DB: contract
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U contract -d contract"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://contract:contract@localhost:5432/contract
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      # --frozen: fail if uv.lock is out of date instead of silently re-resolving.
+      - run: uv sync --frozen
+
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+      - run: uv run alembic upgrade head
+      # Fails when the models changed but nobody wrote a migration for the change.
+      - run: uv run alembic check
+
+      - run: uv run pytest
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: backend
+    steps:
+      - uses: actions/checkout@v6
+      # Build only (no push): proves the Dockerfile still works.
+      - run: docker build -t contract-extractor-backend ./backend

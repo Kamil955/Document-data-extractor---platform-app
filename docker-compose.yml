@@ -1,0 +1,36 @@
+services:
+  postgres:
+    # Postgres with the pgvector extension preinstalled (needed for RAG in stage 1).
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-contract}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-contract}
+      POSTGRES_DB: ${POSTGRES_DB:-contract}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-contract} -d ${POSTGRES_DB:-contract}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      # Inside the compose network the database host is the service name, not localhost.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-contract}:${POSTGRES_PASSWORD:-contract}@postgres:5432/${POSTGRES_DB:-contract}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      # Bind-mount the source so --reload picks up edits without rebuilding the image.
+      - ./backend:/app
+    # Dev only: apply migrations on startup, then run the server with auto-reload.
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+volumes:
+  pgdata:
