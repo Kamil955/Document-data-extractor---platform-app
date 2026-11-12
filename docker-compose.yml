@@ -16,14 +16,32 @@ services:
       timeout: 5s
       retries: 10
 
+  floci-az:
+    # Local Azure emulator. We only use Blob Storage, so the Docker socket mount
+    # (needed for Azure Functions) is deliberately left out.
+    image: floci/floci-az:latest
+    ports:
+      - "4577:4577"
+    environment:
+      # hybrid = in-memory speed with periodic flushing to /app/data, so uploaded files
+      # survive restarts just like the database rows that point to them.
+      FLOCI_AZ_STORAGE_MODE: hybrid
+    volumes:
+      - floci-data:/app/data
+
   backend:
     build: ./backend
     environment:
-      # Inside the compose network the database host is the service name, not localhost.
+      # Inside the compose network the hosts are the service names, not localhost.
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-contract}:${POSTGRES_PASSWORD:-contract}@postgres:5432/${POSTGRES_DB:-contract}
+      # floci-az does not validate credentials; the key only has to be valid base64.
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=bG9jYWwtZGV2LWtleQ==;BlobEndpoint=http://floci-az:4577/devstoreaccount1;"
     depends_on:
       postgres:
         condition: service_healthy
+      # "started" is enough: the app retries the storage connection at startup.
+      floci-az:
+        condition: service_started
     ports:
       - "8000:8000"
     volumes:
@@ -34,3 +52,4 @@ services:
 
 volumes:
   pgdata:
+  floci-data:
