@@ -10,16 +10,14 @@ from fastapi import APIRouter, HTTPException, Query, Response, UploadFile
 from sqlalchemy import select
 
 from app.api.deps import SessionDep, SettingsDep, StorageDep
-from app.models import Document
-from app.schemas import DocumentOut
+from app.core.content_types import DOCX_MIME, PDF_MIME
+from app.models import Chunk, Document, DocumentStatus
+from app.schemas import ChunkOut, DocumentOut
 from app.storage.base import BlobNotFoundError
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
-
-PDF_MIME = "application/pdf"
-DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
 def detect_content_type(data: bytes) -> str | None:
@@ -130,3 +128,40 @@ async def download_document(
         media_type=document.content_type,
         headers={"Content-Disposition": disposition},
     )
+
+
+@router.get("/{document_id}/chunks", response_model=list[ChunkOut])
+async def list_chunks(
+    document_id: uuid.UUID,
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> Sequence[Chunk]:
+    if await session.get(Document, document_id) is None:
+        raise HTTPException(status_code=404, detail="document not found")
+    result = await session.execute(
+        select(Chunk)
+        .where(Chunk.document_id == document_id)
+        .order_by(Chunk.chunk_index)
+        .limit(limit)
+        .offset(offset)
+    )
+    return result.scalars().all()
+
+
+@router.post("/{document_id}/reprocess", response_model=DocumentOut)
+async def reprocess_document(document_id: uuid.UUID, session: SessionDep) -> Document:
+    """Queue a document for processing again (after a failure, or after changing the model).
+
+    The API does not process anything itself: it only puts the document back in the queue.
+    The worker picks it up, and replaces the old chunks atomically.
+    """
+    document = await session.get(Document, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="document not found")
+    if document.status is DocumentStatus.PROCESSING:
+        raise HTTPException(status_code=409, detail="document is being processed right now")
+    document.status = DocumentStatus.UPLOADED
+    document.error = None
+    await session.commit()
+    return document

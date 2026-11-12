@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, String, func
+from sqlalchemy import DateTime, Enum, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -39,4 +39,9 @@ class Document(Base):
         ),
         default=DocumentStatus.UPLOADED,
     )
+    # Why processing failed, shown to the user. NULL unless status is "failed".
+    error: Mapped[str | None] = mapped_column(Text)
+    # Set when a worker claims the document. If a worker dies mid-way the document stays
+    # in "processing" forever, so another worker treats an old timestamp as abandoned work.
+    processing_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

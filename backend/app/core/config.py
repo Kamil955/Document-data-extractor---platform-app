@@ -22,6 +22,20 @@ class Settings(BaseSettings):
     )
     blob_container: str = "documents"
 
+    # Embeddings come from a local Ollama server. In docker compose the worker runs with
+    # host networking, so "localhost" reaches the Ollama running on the host machine.
+    ollama_base_url: str = "http://localhost:11434"
+    embedding_model: str = "qwen3-embedding:0.6b"
+
+    # Chunking, in characters (see ingestion/chunking.py for the reasoning).
+    chunk_max_chars: int = 1500
+    chunk_overlap_chars: int = 200
+
+    # Worker behaviour.
+    worker_poll_seconds: float = 2.0  # sleep when there is nothing to do
+    worker_backoff_seconds: float = 15.0  # sleep when Ollama is unavailable
+    worker_stale_minutes: int = 10  # "processing" for longer than this = abandoned
+
     # 20 MB is plenty for contracts. A hard limit protects memory, because uploads
     # are read fully into memory before they are stored.
     max_upload_bytes: int = 20 * 1024 * 1024

@@ -121,3 +121,64 @@ async def test_blob_is_removed_when_database_commit_fails(
 
     # The compensation step must have deleted the file stored before the failure.
     assert storage.blobs == {}
+
+
+async def test_new_document_has_no_error(client: AsyncClient) -> None:
+    body = (await upload(client, "a.pdf", PDF_BYTES)).json()
+    assert body["error"] is None
+
+
+async def test_chunks_endpoint(client: AsyncClient, db_session: AsyncSession) -> None:
+    from app.models import Chunk
+
+    created = (await upload(client, "a.pdf", PDF_BYTES)).json()
+    db_session.add_all(
+        Chunk(
+            document_id=uuid.UUID(created["id"]),
+            chunk_index=i,
+            text=f"chunk {i}",
+            embedding=[0.0] * 1024,
+            embedding_model="test",
+        )
+        for i in (1, 0)
+    )
+    await db_session.commit()
+
+    response = await client.get(f"/documents/{created['id']}/chunks")
+
+    assert response.status_code == 200
+    assert [c["text"] for c in response.json()] == ["chunk 0", "chunk 1"]  # ordered by index
+    assert "embedding" not in response.json()[0]  # vectors stay server-side
+    assert (await client.get(f"/documents/{uuid.uuid4()}/chunks")).status_code == 404
+
+
+async def test_reprocess_requeues_a_failed_document(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    from app.models import Document, DocumentStatus
+
+    created = (await upload(client, "a.pdf", PDF_BYTES)).json()
+    document = await db_session.get(Document, uuid.UUID(created["id"]))
+    document.status = DocumentStatus.FAILED
+    document.error = "boom"
+    await db_session.commit()
+
+    response = await client.post(f"/documents/{created['id']}/reprocess")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "uploaded"
+    assert response.json()["error"] is None
+
+
+async def test_reprocess_is_refused_while_processing(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    from app.models import Document, DocumentStatus
+
+    created = (await upload(client, "a.pdf", PDF_BYTES)).json()
+    document = await db_session.get(Document, uuid.UUID(created["id"]))
+    document.status = DocumentStatus.PROCESSING
+    await db_session.commit()
+
+    assert (await client.post(f"/documents/{created['id']}/reprocess")).status_code == 409
+    assert (await client.post(f"/documents/{uuid.uuid4()}/reprocess")).status_code == 404

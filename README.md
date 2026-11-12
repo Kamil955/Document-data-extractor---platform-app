@@ -3,8 +3,7 @@
 Web app that ingests documents (contracts), answers questions about them with RAG,
 and fills DOCX templates with extracted data. Templates can be created in the app.
 
-Status: **stage 1a** (document upload and file storage). Roadmap: parsing and indexing ->
-RAG with citations -> templates and field schema -> filling -> template builder -> online editor.
+Status: **stage 1b** (upload, parsing, chunking, embeddings). Roadmap: RAG with citations -> templates and field schema -> filling -> template builder -> online editor.
 
 ## Run everything with Docker
 
@@ -20,6 +19,24 @@ curl localhost:8000/documents
 curl -OJ localhost:8000/documents/<id>/file
 ```
 
+Uploaded documents are indexed in the background by the worker (status `uploaded` ->
+`processing` -> `indexed` or `failed`):
+
+```bash
+curl localhost:8000/documents/<id>/chunks      # text, pages, section of each chunk
+curl -X POST localhost:8000/documents/<id>/reprocess   # retry a failed document
+```
+
+### Embeddings need Ollama on the host
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull qwen3-embedding:0.6b
+```
+
+While Ollama is unreachable the worker keeps documents in `uploaded` and retries;
+they are not marked `failed`.
+
 Interactive API docs: http://localhost:8000/docs
 
 ## Backend development (without Docker for the API)
@@ -33,6 +50,8 @@ uv sync
 export DATABASE_URL=postgresql+psycopg://contract:contract@localhost:5432/contract
 uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
+# in a second terminal: the ingestion worker
+uv run python -m app.ingestion.worker
 ```
 
 ## Checks (the same ones CI runs)
