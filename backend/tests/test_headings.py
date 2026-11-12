@@ -14,6 +14,9 @@ from app.parsing.headings import looks_like_heading
         "§ 5 Confidentiality",
         "TERMINATION",
         "Clause IV",
+        "6.1 Fees for Services.",  # headings may end with a period
+        "6.1.1 Time and Materials.",
+        "6. CHARGES AND PAYMENT.",
     ],
 )
 def test_headings(line: str) -> None:
@@ -34,6 +37,8 @@ def test_headings(line: str) -> None:
         "1 of 83 11/12/26, 19:17",  # page counter from a browser print
         "4.6.2 Provider Facilities. 10",  # table-of-contents entry
         "252 Nassau Street",  # street address
+        "SUITABILITY FOR USE BY PROVIDER.",  # last line of an ALL CAPS disclaimer sentence
+        "2. The Supplier shall deliver the goods.",
     ],
 )
 def test_not_headings(line: str) -> None:
