@@ -31,6 +31,9 @@ def test_headings(line: str) -> None:
         "A",
         "II",
         "x" * 200,
+        "1 of 83 11/12/26, 19:17",  # page counter from a browser print
+        "4.6.2 Provider Facilities. 10",  # table-of-contents entry
+        "252 Nassau Street",  # street address
     ],
 )
 def test_not_headings(line: str) -> None:

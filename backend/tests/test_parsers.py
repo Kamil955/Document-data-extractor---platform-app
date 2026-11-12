@@ -45,3 +45,42 @@ def test_docx_uses_styles_for_headings_and_reads_tables_in_order() -> None:
     ]
     assert [b.is_heading for b in blocks] == [True, False, False, False, True, False]
     assert all(b.page is None for b in blocks)
+
+
+def test_running_headers_and_footers_are_removed() -> None:
+    from app.parsing.pdf import strip_running_lines
+
+    pages = [
+        ["Contract header", "1. Definitions", "text one", f"{n} of 5 11/12/26, 19:17"]
+        for n in range(1, 6)
+    ]
+    pages[2][2] = "unique body text"
+
+    cleaned = strip_running_lines(pages)
+
+    assert cleaned[2] == ["1. Definitions", "unique body text"] or cleaned[2] == [
+        "unique body text"
+    ]
+    assert all("of 5" not in line for lines in cleaned for line in lines)
+    assert all("Contract header" not in lines for lines in cleaned)
+
+
+def test_short_documents_keep_repeated_lines() -> None:
+    from app.parsing.pdf import strip_running_lines
+
+    pages = [["same line"], ["same line"], ["same line"]]
+    assert strip_running_lines(pages) == pages
+
+
+def test_footer_is_not_a_section_in_a_real_pdf() -> None:
+    titles = ["Definitions", "Payment", "Term", "Liability", "Notices", "Governing law"]
+    pages = [
+        [f"{n}. {title}", "body text of the clause", f"{n} of 6"]
+        for n, title in enumerate(titles, 1)
+    ]
+    blocks = parse_pdf(make_pdf(pages))
+
+    assert not any("of 6" in b.text for b in blocks)
+    assert [b.text for b in blocks if b.is_heading] == [
+        f"{n}. {t}" for n, t in enumerate(titles, 1)
+    ]

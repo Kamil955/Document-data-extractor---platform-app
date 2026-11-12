@@ -48,7 +48,12 @@ async def test_chunks_are_deleted_with_their_document(db_session: AsyncSession) 
     await db_session.execute(delete(Document).where(Document.id == document.id))
     await db_session.commit()
 
-    remaining = (await db_session.execute(select(func.count()).select_from(Chunk))).scalar_one()
+    # Count only this document's chunks: a developer's database may hold other chunks.
+    remaining = (
+        await db_session.execute(
+            select(func.count()).select_from(Chunk).where(Chunk.document_id == document.id)
+        )
+    ).scalar_one()
     assert remaining == 0
 
 
