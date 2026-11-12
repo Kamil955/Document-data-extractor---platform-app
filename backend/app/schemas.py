@@ -16,4 +16,20 @@ class DocumentOut(BaseModel):
     filename: str
     content_type: str
     status: DocumentStatus
+    # Why processing failed (only set when status is "failed").
+    error: str | None
     created_at: datetime
+
+
+class ChunkOut(BaseModel):
+    """A chunk without its vector: 1024 floats per row would only bloat the response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    chunk_index: int
+    text: str
+    page_start: int | None
+    page_end: int | None
+    section_path: str | None
+    embedding_model: str

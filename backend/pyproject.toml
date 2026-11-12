@@ -12,6 +12,10 @@ dependencies = [
     "azure-storage-blob>=12.31.1",
     "aiohttp>=3.14.5",
     "python-multipart>=0.0.33",
+    "pdfplumber>=0.11.10",
+    "python-docx>=1.2.0",
+    "pgvector>=0.5.1",
+    "httpx>=0.28.1",
 ]
 
 [dependency-groups]
@@ -20,6 +24,7 @@ dev = [
     "pytest-asyncio>=0.24",
     "httpx>=0.27",
     "ruff>=0.6",
+    "fpdf2>=2.9.0",
 ]
 
 [tool.uv]
