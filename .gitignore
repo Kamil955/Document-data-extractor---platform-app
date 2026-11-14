@@ -9,7 +9,7 @@ __pycache__/
 # Local config and secrets
 .env
 
-# Node (frontend, added later)
+# Node (frontend)
 node_modules/
 .next/
 

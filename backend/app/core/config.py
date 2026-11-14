@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     )
     blob_container: str = "documents"
 
+    # Browser origins allowed to call the API (the frontend). A JSON list in the environment:
+    # CORS_ORIGINS='["https://app.example.com"]'.
+    cors_origins: list[str] = ["http://localhost:3000"]
+
     # Embeddings come from a local Ollama server. In docker compose the worker runs with
     # host networking, so "localhost" reaches the Ollama running on the host machine.
     ollama_base_url: str = "http://localhost:11434"

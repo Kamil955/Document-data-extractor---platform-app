@@ -187,6 +187,9 @@ class FieldResultOut(BaseModel):
     # The chunks the model was given for this field: what to look at when a value is missing.
     retrieved: list[RetrievedOut]
     error: str | None
+    # True when a person typed or corrected the value: it counts as verified by that person.
+    # Default False so results stored before this field existed still load.
+    edited: bool = False
 
 
 class ExtractResponse(BaseModel):
@@ -196,3 +199,9 @@ class ExtractResponse(BaseModel):
     template_id: uuid.UUID | None
     model: str
     results: list[FieldResultOut]
+
+
+class ValueUpdate(BaseModel):
+    """A person's correction of one extracted value. An empty value means "not stated"."""
+
+    value: str = Field(max_length=5000)
