@@ -165,3 +165,23 @@ async def reprocess_document(document_id: uuid.UUID, session: SessionDep) -> Doc
     document.error = None
     await session.commit()
     return document
+
+
+@router.delete("/{document_id}", status_code=204)
+async def delete_document(
+    document_id: uuid.UUID, session: SessionDep, storage: StorageDep
+) -> Response:
+    """Delete a document: its row, its chunks (ON DELETE CASCADE) and the stored file."""
+    document = await session.get(Document, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="document not found")
+    if document.status is DocumentStatus.PROCESSING:
+        # The worker would write chunks for a row that no longer exists.
+        raise HTTPException(status_code=409, detail="document is being processed right now")
+    storage_key = document.storage_key
+    # Database first, file second. If the file delete fails we are left with an orphan blob,
+    # which is harmless; the reverse order could leave a row whose file is gone.
+    await session.delete(document)
+    await session.commit()
+    await storage.delete(storage_key)
+    return Response(status_code=204)

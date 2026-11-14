@@ -93,3 +93,29 @@ uv run alembic revision --autogenerate -m "describe the change"
 
 Always read the generated file before committing it. `alembic check` in CI fails
 when models and migrations drift apart.
+
+
+## Templates and extraction
+
+A template is a list of fields to extract (key, label, optional description, type: `text`,
+`number`, `date`, `boolean`). It says what to look for, not where, so one template can be used
+on any document.
+
+```bash
+# create a template (an example is in backend/examples)
+curl -s -X POST localhost:8000/templates -H 'Content-Type: application/json' \
+  -d @backend/examples/template_contract_basics.json | python -m json.tool
+
+# extract its fields from an indexed document (a few seconds per field)
+curl -s -X POST localhost:8000/documents/$DOC/extract -H 'Content-Type: application/json' \
+  -d "{\"template_id\": \"$TEMPLATE\"}" | python -m json.tool
+
+# or without a stored template: send the fields inline
+curl -s -X POST localhost:8000/documents/$DOC/extract -H 'Content-Type: application/json' \
+  -d '{"fields": [{"key": "law", "label": "Governing law"}]}' | python -m json.tool
+```
+
+Every value has `citations` with a quote that was checked against the document text.
+`supported: false` with `found: true` means the model could not back the value with a real
+quote: have a person check it. `DELETE /templates/{id}` and `DELETE /documents/{id}` remove
+a template or a document (with its chunks and file).

@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import ask, documents, health, search
+from app.api import ask, documents, extract, health, search, templates
 from app.core.config import get_settings
 from app.core.db import engine
 from app.embeddings.ollama import OllamaEmbedder
@@ -50,6 +50,8 @@ def create_app() -> FastAPI:
     app.include_router(documents.router)
     app.include_router(search.router)
     app.include_router(ask.router)
+    app.include_router(templates.router)
+    app.include_router(extract.router)
     return app
 
 

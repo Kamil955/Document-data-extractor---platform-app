@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_llm
 from app.main import app
-from app.models import Chunk, Document
+from app.models import Chunk, Document, DocumentStatus
 from tests.fakes import FakeEmbedder, FakeLLM, UnavailableLLM
 
 pytestmark = pytest.mark.integration  # needs Postgres with pgvector
@@ -25,6 +25,7 @@ async def add_document(session: AsyncSession, embedder: FakeEmbedder) -> Documen
         filename="nda.pdf",
         content_type="application/pdf",
         storage_key=f"documents/{document_id}",
+        status=DocumentStatus.INDEXED,  # extraction accepts only indexed documents
     )
     session.add(document)
     await session.flush()
@@ -177,3 +178,77 @@ async def test_model_down_gives_503(
 
 async def test_empty_question_is_rejected(client: AsyncClient) -> None:
     assert (await client.post("/ask", json={"question": ""})).status_code == 422
+
+
+async def test_retry_when_the_first_quote_is_not_verbatim(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder, llm: FakeLLM
+) -> None:
+    document = await add_document(db_session, embedder)
+
+    def respond(prompt: str) -> dict:
+        n = excerpt_number(prompt, "ten (10) business days")
+        # The first reply paraphrases the quote; after the retry note it copies it exactly.
+        quote = "ten (10) business days written notice" if "word for word" in prompt else "10 days"
+        return {
+            "found": True,
+            "answer": "10 business days",
+            "citations": [{"excerpt": n, "quote": quote}],
+        }
+
+    llm.response = respond
+
+    body = (await ask(client, document)).json()
+
+    assert len(llm.calls) == 2
+    assert body["supported"] is True and body["citations"][0]["verified"] is True
+
+
+async def test_no_retry_when_the_quote_is_already_verified(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder, llm: FakeLLM
+) -> None:
+    document = await add_document(db_session, embedder)
+    llm.response = lambda prompt: {
+        "found": True,
+        "answer": "Washington",
+        "citations": [
+            {"excerpt": excerpt_number(prompt, "Washington"), "quote": "State of Washington"}
+        ],
+    }
+
+    await ask(client, document)
+
+    assert len(llm.calls) == 1
+
+
+async def test_failed_retry_keeps_the_first_answer_flagged(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder, llm: FakeLLM
+) -> None:
+    document = await add_document(db_session, embedder)
+    llm.response = {
+        "found": True,
+        "answer": "Thirty days.",
+        "citations": [{"excerpt": 1, "quote": "never in the text"}],
+    }
+
+    body = (await ask(client, document)).json()
+
+    assert len(llm.calls) == 2  # exactly one retry, not a loop
+    assert body["found"] is True and body["supported"] is False
+    assert body["answer"] == "Thirty days."
+
+
+async def test_excerpt_numbers_are_removed_from_the_answer(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder, llm: FakeLLM
+) -> None:
+    document = await add_document(db_session, embedder)
+    llm.response = lambda prompt: {
+        "found": True,
+        "answer": "Ten business days [1], by written notice [2].",
+        "citations": [
+            {"excerpt": excerpt_number(prompt, "ten (10)"), "quote": "ten (10) business days"}
+        ],
+    }
+
+    body = (await ask(client, document)).json()
+
+    assert body["answer"] == "Ten business days, by written notice."
