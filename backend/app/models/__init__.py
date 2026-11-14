@@ -3,6 +3,7 @@
 from app.models.base import Base
 from app.models.chunk import EMBEDDING_DIM, Chunk
 from app.models.document import Document, DocumentStatus
+from app.models.extraction import Extraction
 from app.models.template import FieldType, Template, TemplateField
 
 __all__ = [
@@ -11,6 +12,7 @@ __all__ = [
     "Chunk",
     "Document",
     "DocumentStatus",
+    "Extraction",
     "FieldType",
     "Template",
     "TemplateField",
