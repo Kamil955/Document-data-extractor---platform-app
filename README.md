@@ -131,3 +131,22 @@ for m in vector hybrid; do
   uv run python -m app.evaluation.run --document $DOC --mode $m eval/uw_mutual_nda.json | tail -1
 done
 ```
+
+## Filling a Word template
+
+An extraction is saved (`extraction_id` in the response of `/documents/{id}/extract`), so it can
+be used without asking the model again. A Word file with placeholders `{{field_key}}` is filled
+from it:
+
+```bash
+EXTRACTION=$(curl -s -X POST localhost:8000/documents/$DOC/extract -H 'Content-Type: application/json' \
+  -d "{\"template_id\": \"$TPL\"}" | python -c 'import json,sys; print(json.load(sys.stdin)["extraction_id"])')
+
+curl -s -D - -o filled.docx -X POST localhost:8000/extractions/$EXTRACTION/fill \
+  -F "file=@backend/examples/contract_summary_template.docx"
+```
+
+The `X-Fill-*` response headers list the placeholders that were filled, not found, unverified
+(a value without a verified quote) or unknown (no such field). In the document, not found values
+are marked yellow and unverified values turquoise. Placeholders are found even when Word splits
+them over several runs; text boxes, footnotes and hyperlinks are not covered yet.

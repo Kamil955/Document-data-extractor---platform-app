@@ -190,6 +190,8 @@ class FieldResultOut(BaseModel):
 
 
 class ExtractResponse(BaseModel):
+    # Id of the saved extraction: use it to read the result again or to fill a Word file.
+    extraction_id: uuid.UUID
     document_id: uuid.UUID
     template_id: uuid.UUID | None
     model: str

@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from app.api.deps import EmbedderDep, LLMDep, SessionDep
 from app.embeddings.base import EmbedderUnavailableError, EmbeddingError
 from app.llm.base import LLMUnavailableError
-from app.models import Document, DocumentStatus, FieldType, Template
+from app.models import Document, DocumentStatus, Extraction, FieldType, Template
 from app.retrieval.extract import FieldSpec, extract_fields
 from app.schemas import CitationOut, ExtractRequest, ExtractResponse, FieldResultOut, RetrievedOut
 
@@ -52,30 +52,41 @@ async def extract(
     except EmbeddingError as exc:
         raise HTTPException(400, f"field rejected by the embedding model: {exc}") from exc
 
-    return ExtractResponse(
+    outputs = [
+        FieldResultOut(
+            key=r.key,
+            label=r.label,
+            type=r.field_type,
+            value=r.value,
+            found=r.found,
+            supported=r.supported,
+            citations=[CitationOut(**vars(c)) for c in r.citations],
+            retrieved=[
+                RetrievedOut(
+                    chunk_id=hit.chunk.id,
+                    page_start=hit.chunk.page_start,
+                    section_path=hit.chunk.section_path,
+                    score=hit.score,
+                )
+                for hit in r.retrieved
+            ],
+            error=r.error,
+        )
+        for r in results
+    ]
+    extraction = Extraction(
         document_id=document_id,
         template_id=body.template_id,
         model=llm.model_name,
-        results=[
-            FieldResultOut(
-                key=r.key,
-                label=r.label,
-                type=r.field_type,
-                value=r.value,
-                found=r.found,
-                supported=r.supported,
-                citations=[CitationOut(**vars(c)) for c in r.citations],
-                retrieved=[
-                    RetrievedOut(
-                        chunk_id=hit.chunk.id,
-                        page_start=hit.chunk.page_start,
-                        section_path=hit.chunk.section_path,
-                        score=hit.score,
-                    )
-                    for hit in r.retrieved
-                ],
-                error=r.error,
-            )
-            for r in results
-        ],
+        # mode="json" turns UUIDs and enums into plain JSON values for the JSONB column.
+        results=[output.model_dump(mode="json") for output in outputs],
+    )
+    session.add(extraction)
+    await session.commit()
+    return ExtractResponse(
+        extraction_id=extraction.id,
+        document_id=document_id,
+        template_id=body.template_id,
+        model=extraction.model,
+        results=outputs,
     )
