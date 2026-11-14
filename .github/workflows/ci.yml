@@ -37,6 +37,14 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      # Azure Blob emulator for the storage tests, the same image docker compose uses.
+      # No health check: the storage client retries the connection on startup, and its default
+      # connection string already points at localhost:4577.
+      floci-az:
+        image: floci/floci-az:latest
+        ports:
+          - 4577:4577
+
     env:
       DATABASE_URL: postgresql+psycopg://contract:contract@localhost:5432/contract
 

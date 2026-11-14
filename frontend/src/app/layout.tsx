@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "Extract data from documents with cited sources and fill Word templates.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
