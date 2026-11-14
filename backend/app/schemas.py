@@ -1,9 +1,10 @@
+import re
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.models import DocumentStatus
+from app.models import DocumentStatus, FieldType
 
 
 class DocumentOut(BaseModel):
@@ -90,3 +91,99 @@ class AskResponse(BaseModel):
     citations: list[CitationOut]
     retrieved: list[RetrievedOut]
     model: str
+
+
+# Keys are used as placeholders in DOCX templates ("{{notice_period}}"), so they are restricted
+# to a form that is safe there and easy to type.
+_KEY = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+
+
+class FieldIn(BaseModel):
+    key: str = Field(description="Machine name: lowercase letters, digits and underscores.")
+    label: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=1000)
+    type: FieldType = FieldType.TEXT
+
+    @field_validator("key")
+    @classmethod
+    def key_is_a_slug(cls, value: str) -> str:
+        if not _KEY.match(value):
+            raise ValueError("key must match [a-z][a-z0-9_]{0,63}")
+        return value
+
+
+def _reject_duplicate_keys(fields: list[FieldIn]) -> list[FieldIn]:
+    keys = [f.key for f in fields]
+    duplicates = sorted({k for k in keys if keys.count(k) > 1})
+    if duplicates:
+        raise ValueError(f"duplicate field keys: {', '.join(duplicates)}")
+    return fields
+
+
+class TemplateCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    fields: list[FieldIn] = Field(min_length=1, max_length=100)
+
+    @field_validator("fields")
+    @classmethod
+    def keys_are_unique(cls, value: list[FieldIn]) -> list[FieldIn]:
+        return _reject_duplicate_keys(value)
+
+
+class FieldOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    key: str
+    label: str
+    description: str | None
+    # The database column is field_type; the API calls it "type" like the request does.
+    type: FieldType = Field(validation_alias="field_type")
+
+
+class TemplateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    description: str | None
+    created_at: datetime
+    fields: list[FieldOut]
+
+
+class ExtractRequest(BaseModel):
+    """Extract fields from one document: either a stored template or an inline field list."""
+
+    template_id: uuid.UUID | None = None
+    fields: list[FieldIn] | None = Field(default=None, min_length=1, max_length=100)
+    limit: int = Field(default=5, ge=1, le=10)
+
+    @field_validator("fields")
+    @classmethod
+    def keys_are_unique(cls, value: list[FieldIn] | None) -> list[FieldIn] | None:
+        return None if value is None else _reject_duplicate_keys(value)
+
+    @model_validator(mode="after")
+    def exactly_one_source(self) -> "ExtractRequest":
+        if (self.template_id is None) == (self.fields is None):
+            raise ValueError("give either template_id or fields, not both and not neither")
+        return self
+
+
+class FieldResultOut(BaseModel):
+    key: str
+    label: str
+    type: FieldType
+    value: str
+    found: bool
+    # found AND a verified citation. found=True with supported=False needs a human check.
+    supported: bool
+    citations: list[CitationOut]
+    error: str | None
+
+
+class ExtractResponse(BaseModel):
+    document_id: uuid.UUID
+    template_id: uuid.UUID | None
+    model: str
+    results: list[FieldResultOut]

@@ -1,3 +1,4 @@
+import re
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -5,7 +6,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.embeddings.base import Embedder
-from app.llm.base import LLM
+from app.llm.base import LLM, LLMError
 from app.retrieval.search import SearchHit, search_chunks
 
 # Neutral wording on purpose: nothing here is specific to contracts, so the same prompt
@@ -21,7 +22,8 @@ and return no citations. Do not guess.
 dates, names, durations) exactly as written in the excerpts.
 3. For every statement you rely on, add a citation: the excerpt number and a quote copied \
 character for character from that excerpt (3 to 25 words, no ellipses).
-4. Never use knowledge from outside the excerpts."""
+4. Never use knowledge from outside the excerpts.
+5. Write the answer as plain text: no excerpt numbers or brackets inside it."""
 
 ANSWER_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -120,6 +122,26 @@ def _verify_citations(raw: Any, hits: list[SearchHit]) -> list[Citation]:
     return citations
 
 
+# Models sometimes put the excerpt number into the answer text ("... days [1]"). The numbers
+# only make sense inside the prompt, so they are removed from what the user sees.
+_CITATION_MARKER = re.compile(r"\s*\[\d{1,2}\]")
+
+RETRY_NOTE = (
+    "Your previous reply had no quote that occurs word for word in the excerpt you cited. "
+    "Reply again. Copy each quote exactly, character for character, from a single excerpt."
+)
+
+
+async def _generate(
+    llm: LLM, prompt: str, hits: list[SearchHit]
+) -> tuple[bool, str, list[Citation]]:
+    raw = await llm.generate_json(SYSTEM_PROMPT, prompt, ANSWER_SCHEMA)
+    answer = _CITATION_MARKER.sub("", str(raw.get("answer", ""))).strip()
+    found = bool(raw.get("found")) and bool(answer)
+    citations = _verify_citations(raw.get("citations"), hits) if found else []
+    return found, (answer if found else ""), citations
+
+
 async def answer_question(
     session: AsyncSession,
     embedder: Embedder,
@@ -128,18 +150,34 @@ async def answer_question(
     *,
     limit: int = 5,
     document_id: uuid.UUID | None = None,
+    search_query: str | None = None,
 ) -> Answer:
-    hits = await search_chunks(session, embedder, question, limit=limit, document_id=document_id)
+    """Find the relevant chunks, let the model answer from them, verify its quotes.
+
+    `search_query` is what is embedded and searched; by default it is the question itself.
+    Field extraction passes a short query (the field's label and description) while the
+    model gets a longer instruction, because a long instruction makes a poor search query.
+    """
+    hits = await search_chunks(
+        session, embedder, search_query or question, limit=limit, document_id=document_id
+    )
     if not hits:
         # Nothing indexed to read: do not spend a model call (and do not invite a guess).
         return Answer(question, False, "", False, [], [], llm.model_name)
 
-    raw = await llm.generate_json(SYSTEM_PROMPT, build_user_prompt(question, hits), ANSWER_SCHEMA)
+    prompt = build_user_prompt(question, hits)
+    found, answer, citations = await _generate(llm, prompt, hits)
 
-    answer = str(raw.get("answer", "")).strip()
-    found = bool(raw.get("found")) and bool(answer)
-    citations = _verify_citations(raw.get("citations"), hits) if found else []
+    if found and not any(c.verified for c in citations):
+        # The answer may be right but its quote is not verbatim, which makes it unusable as
+        # evidence. One retry that says so fixes most of these; a second failure is final.
+        # The retry is best effort: if it fails, the first answer is still returned.
+        try:
+            retry = await _generate(llm, f"{prompt}\n\n{RETRY_NOTE}", hits)
+        except LLMError:
+            retry = None
+        if retry is not None and retry[0] and any(c.verified for c in retry[2]):
+            found, answer, citations = retry
+
     supported = found and any(c.verified for c in citations)
-    return Answer(
-        question, found, answer if found else "", supported, citations, hits, llm.model_name
-    )
+    return Answer(question, found, answer, supported, citations, hits, llm.model_name)

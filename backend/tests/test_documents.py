@@ -182,3 +182,38 @@ async def test_reprocess_is_refused_while_processing(
 
     assert (await client.post(f"/documents/{created['id']}/reprocess")).status_code == 409
     assert (await client.post(f"/documents/{uuid.uuid4()}/reprocess")).status_code == 404
+
+
+async def test_delete_removes_row_chunks_and_file(
+    client: AsyncClient, storage: InMemoryStorage, db_session: AsyncSession
+) -> None:
+    from sqlalchemy import func, select
+
+    from app.models import Chunk
+
+    document_id = (await upload(client, "a.pdf", PDF_BYTES)).json()["id"]
+    db_session.add(
+        Chunk(
+            document_id=uuid.UUID(document_id),
+            chunk_index=0,
+            text="x",
+            embedding=[0.0] * 1024,
+            embedding_model="m",
+        )
+    )
+    await db_session.commit()
+    assert f"documents/{document_id}" in storage.blobs
+
+    response = await client.delete(f"/documents/{document_id}")
+
+    assert response.status_code == 204
+    assert (await client.get(f"/documents/{document_id}")).status_code == 404
+    assert f"documents/{document_id}" not in storage.blobs
+    remaining = await db_session.scalar(
+        select(func.count()).select_from(Chunk).where(Chunk.document_id == uuid.UUID(document_id))
+    )
+    assert remaining == 0
+
+
+async def test_delete_unknown_document_is_404(client: AsyncClient) -> None:
+    assert (await client.delete(f"/documents/{uuid.uuid4()}")).status_code == 404
