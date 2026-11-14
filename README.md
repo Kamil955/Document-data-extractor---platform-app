@@ -119,3 +119,15 @@ Every value has `citations` with a quote that was checked against the document t
 `supported: false` with `found: true` means the model could not back the value with a real
 quote: have a person check it. `DELETE /templates/{id}` and `DELETE /documents/{id}` remove
 a template or a document (with its chunks and file).
+
+### Search modes
+
+`/search` takes `mode`: `vector` (default, by meaning) or `hybrid` (meaning plus Postgres
+full-text keywords, merged with Reciprocal Rank Fusion). On three real contracts hybrid was
+worse (hit@1 100% -> 79% and 80% -> 60%), so it is not the default. Compare with:
+
+```bash
+for m in vector hybrid; do
+  uv run python -m app.evaluation.run --document $DOC --mode $m eval/uw_mutual_nda.json | tail -1
+done
+```

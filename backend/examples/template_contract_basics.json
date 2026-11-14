@@ -6,7 +6,7 @@
     {"key": "termination_notice", "label": "Termination notice", "description": "written notice needed to terminate the agreement", "type": "text"},
     {"key": "governing_law", "label": "Governing law", "description": "which state or country law governs the agreement", "type": "text"},
     {"key": "confidentiality_period", "label": "Confidentiality period", "description": "how long confidentiality obligations continue", "type": "text"},
-    {"key": "payment_terms", "label": "Payment terms", "description": "how and when the contractor or provider is paid", "type": "text"},
+    {"key": "payment_terms", "label": "Payment terms", "description": "amount, rate or schedule of payment for the services", "type": "text"},
     {"key": "liability_cap", "label": "Liability limit", "description": "limitation of liability", "type": "text"},
     {"key": "has_non_compete", "label": "Non-compete", "description": "whether the agreement contains a non-compete clause", "type": "boolean"}
   ]

@@ -155,8 +155,8 @@ async def answer_question(
     """Find the relevant chunks, let the model answer from them, verify its quotes.
 
     `search_query` is what is embedded and searched; by default it is the question itself.
-    Field extraction passes a short query (the field's label and description) while the
-    model gets a longer instruction, because a long instruction makes a poor search query.
+    Field extraction passes a short query (the field's label and description) while the model
+    gets a longer instruction, because a long instruction makes a poor search query.
     """
     hits = await search_chunks(
         session, embedder, search_query or question, limit=limit, document_id=document_id

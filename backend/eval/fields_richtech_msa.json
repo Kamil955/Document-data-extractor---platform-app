@@ -1,0 +1,7 @@
+[
+  {"key": "termination_notice", "label": "Termination notice", "description": "written notice needed to terminate the agreement", "expected_any": ["thirty (30) days"]},
+  {"key": "payment_terms", "label": "Payment terms", "description": "amount, rate or schedule of payment for the services", "expected_any": ["compensate"]},
+  {"key": "records_retention", "label": "Audit records retention", "description": "how long the provider keeps records for audit", "expected_any": ["during the Term"]},
+  {"key": "insurance", "label": "Insurance", "description": "insurance coverage the provider must carry", "expected_any": ["insurance"]},
+  {"key": "has_non_compete", "label": "Non-compete", "description": "whether the agreement contains a non-compete clause", "type": "boolean", "expect_found": false}
+]

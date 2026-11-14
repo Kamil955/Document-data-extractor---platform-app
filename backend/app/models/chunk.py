@@ -3,6 +3,7 @@ from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -47,5 +48,12 @@ class Chunk(Base):
             "embedding",
             postgresql_using="hnsw",
             postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        # GIN index for keyword search (see app.retrieval.search). The expression must be
+        # identical to the one used in queries, otherwise Postgres will not use the index.
+        Index(
+            "ix_chunks_text_fts",
+            sql_text("to_tsvector('english'::regconfig, text)"),
+            postgresql_using="gin",
         ),
     )

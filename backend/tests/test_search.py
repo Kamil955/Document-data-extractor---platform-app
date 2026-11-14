@@ -114,3 +114,70 @@ async def test_embedding_service_down_gives_503(client: AsyncClient) -> None:
     response = await client.post("/search", json={"query": "anything"})
 
     assert response.status_code == 503
+
+
+def test_keyword_query_keeps_words_and_cannot_inject_syntax() -> None:
+    from app.retrieval.search import keyword_query
+
+    assert (
+        keyword_query("Payment terms, payment: how is it PAID?") == "payment | terms | how | paid"
+    )
+    # Characters with a meaning in tsquery syntax are dropped, not passed on.
+    assert keyword_query("a' | !b & (c):*") is None
+    assert keyword_query("---") is None
+
+
+async def test_hybrid_finds_an_exact_word_that_meaning_alone_ranks_low(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder
+) -> None:
+    # The fake embedder knows no meaning: vector order is arbitrary. Only the keyword half can
+    # know that "payment" is the word the query is about, so hybrid must put that chunk first.
+    document = await add_document(db_session, embedder, TEXTS)
+
+    response = await client.post(
+        "/search",
+        json={"query": "payment", "limit": 3, "document_id": str(document.id), "mode": "hybrid"},
+    )
+
+    assert response.json()[0]["text"] == "payment is due in 30 days"
+
+
+async def test_vector_mode_does_not_use_keywords(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder
+) -> None:
+    document = await add_document(db_session, embedder, TEXTS)
+    texts = {}
+    for mode in ("vector", "hybrid"):
+        response = await client.post(
+            "/search",
+            json={"query": "payment", "limit": 3, "document_id": str(document.id), "mode": mode},
+        )
+        texts[mode] = [h["text"] for h in response.json()]
+
+    # Same candidates, so the difference between the two modes is only the order, and the
+    # score of every hit is still a cosine similarity.
+    assert sorted(texts["vector"]) == sorted(texts["hybrid"])
+    assert texts["hybrid"][0] == "payment is due in 30 days"
+
+
+async def test_query_with_special_characters_does_not_break_hybrid_search(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder
+) -> None:
+    document = await add_document(db_session, embedder, TEXTS)
+
+    response = await client.post(
+        "/search",
+        json={
+            "query": "payment' | !terms & (x):*",
+            "document_id": str(document.id),
+            "mode": "hybrid",
+        },
+    )
+
+    assert response.status_code == 200
+
+
+async def test_unknown_mode_is_rejected(client: AsyncClient) -> None:
+    response = await client.post("/search", json={"query": "x", "mode": "magic"})
+
+    assert response.status_code == 422

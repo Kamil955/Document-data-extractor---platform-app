@@ -1,0 +1,8 @@
+[
+  {"key": "term", "label": "Term of the agreement", "description": "how long the agreement lasts or when it ends", "expected_any": ["June 30, 2015", "two years"]},
+  {"key": "termination_notice", "label": "Termination notice", "description": "written notice needed to terminate the agreement", "expected_any": ["one month", "30 days"]},
+  {"key": "payment_terms", "label": "Payment terms", "description": "amount, rate or schedule of payment for the services", "expected_any": ["per day"]},
+  {"key": "association", "label": "Contractor's description of association with the university", "description": "how the contractor must describe the association with the university", "expected_any": ["Adjunct Instructor"]},
+  {"key": "governing_law", "label": "Governing law", "description": "which state or country law governs the agreement", "expect_found": false},
+  {"key": "liability_cap", "label": "Liability limit", "description": "limitation of liability", "expect_found": false}
+]

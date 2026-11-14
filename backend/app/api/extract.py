@@ -7,7 +7,7 @@ from app.embeddings.base import EmbedderUnavailableError, EmbeddingError
 from app.llm.base import LLMUnavailableError
 from app.models import Document, DocumentStatus, FieldType, Template
 from app.retrieval.extract import FieldSpec, extract_fields
-from app.schemas import CitationOut, ExtractRequest, ExtractResponse, FieldResultOut
+from app.schemas import CitationOut, ExtractRequest, ExtractResponse, FieldResultOut, RetrievedOut
 
 router = APIRouter(tags=["extract"])
 
@@ -65,6 +65,15 @@ async def extract(
                 found=r.found,
                 supported=r.supported,
                 citations=[CitationOut(**vars(c)) for c in r.citations],
+                retrieved=[
+                    RetrievedOut(
+                        chunk_id=hit.chunk.id,
+                        page_start=hit.chunk.page_start,
+                        section_path=hit.chunk.section_path,
+                        score=hit.score,
+                    )
+                    for hit in r.retrieved
+                ],
                 error=r.error,
             )
             for r in results
