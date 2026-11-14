@@ -3,7 +3,7 @@
 Web app that ingests documents (contracts), answers questions about them with RAG,
 and fills DOCX templates with extracted data. Templates can be created in the app.
 
-Status: **stage 1b** (upload, parsing, chunking, embeddings). Roadmap: RAG with citations -> templates and field schema -> filling -> template builder -> online editor.
+Status: **stage 2, part 1** (upload, indexing, semantic search, retrieval evaluation). Roadmap: RAG with citations -> templates and field schema -> filling -> template builder -> online editor.
 
 ## Run everything with Docker
 
@@ -36,6 +36,25 @@ ollama pull qwen3-embedding:0.6b
 
 While Ollama is unreachable the worker keeps documents in `uploaded` and retries;
 they are not marked `failed`.
+
+### Search and evaluation
+
+```bash
+curl -s -X POST localhost:8000/search -H 'Content-Type: application/json' \
+  -d '{"query": "how are invoices paid?", "limit": 5}'
+```
+
+Answers with citations (needs a language model in Ollama):
+
+```bash
+ollama pull qwen3.5:9b
+curl -s -X POST localhost:8000/ask -H 'Content-Type: application/json' \
+  -d '{"question": "How much notice is needed to terminate?"}'
+```
+
+The response contains `found`, `answer`, `supported` (true only when a citation was verified
+against the source text) and the citations with page and section. Retrieval and answer
+quality are measured against question sets, see `backend/eval/README.md`.
 
 Interactive API docs: http://localhost:8000/docs
 

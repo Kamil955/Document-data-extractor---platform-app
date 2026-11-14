@@ -31,19 +31,24 @@ services:
 
   backend:
     build: ./backend
+    # Host networking, like the worker: /search needs Ollama, which listens only on the
+    # host's localhost (it has no authentication, so it is deliberately not exposed to the
+    # LAN). The API therefore listens directly on the host's port 8000 and reaches Postgres
+    # and floci-az through their published ports.
+    network_mode: host
     environment:
-      # Inside the compose network the hosts are the service names, not localhost.
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-contract}:${POSTGRES_PASSWORD:-contract}@postgres:5432/${POSTGRES_DB:-contract}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-contract}:${POSTGRES_PASSWORD:-contract}@localhost:5432/${POSTGRES_DB:-contract}
       # floci-az does not validate credentials; the key only has to be valid base64.
-      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=bG9jYWwtZGV2LWtleQ==;BlobEndpoint=http://floci-az:4577/devstoreaccount1;"
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=bG9jYWwtZGV2LWtleQ==;BlobEndpoint=http://localhost:4577/devstoreaccount1;"
+      OLLAMA_BASE_URL: http://localhost:11434
+      # Language model for /ask. Change it here or in .env to compare models.
+      LLM_MODEL: ${LLM_MODEL:-qwen3.5:9b}
     depends_on:
       postgres:
         condition: service_healthy
       # "started" is enough: the app retries the storage connection at startup.
       floci-az:
         condition: service_started
-    ports:
-      - "8000:8000"
     volumes:
       # Bind-mount the source so --reload picks up edits without rebuilding the image.
       - ./backend:/app

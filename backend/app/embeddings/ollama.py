@@ -5,8 +5,9 @@ from app.embeddings.base import EmbedderUnavailableError, EmbeddingError
 # Qwen3-Embedding is "instruction aware": a search query is prefixed with a task
 # description, documents are embedded as plain text. Skipping the prefix on queries
 # lowers retrieval quality noticeably. (Format taken from the model card; verify it
-# against your own retrieval tests before relying on it.)
-QUERY_TASK = "Given a search query about a contract, retrieve relevant passages that answer it"
+# against your own retrieval tests before relying on it.) The wording is a setting
+# (embedding_query_instruction): nothing in the code is specific to one kind of document.
+DEFAULT_QUERY_INSTRUCTION = "Given a question, retrieve the passages of the document that answer it"
 
 
 class OllamaEmbedder:
@@ -18,12 +19,14 @@ class OllamaEmbedder:
         batch_size: int = 16,
         num_ctx: int = 2048,
         timeout_seconds: float = 120.0,
+        query_instruction: str = DEFAULT_QUERY_INSTRUCTION,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self.model_name = model
         self._expected_dim = expected_dim
         self._batch_size = batch_size
         self._num_ctx = num_ctx
+        self._query_instruction = query_instruction
         # A client can be injected so tests can plug in a fake transport instead of a server.
         self._client = client or httpx.AsyncClient(
             base_url=base_url, timeout=httpx.Timeout(timeout_seconds, connect=5.0)
@@ -38,7 +41,7 @@ class OllamaEmbedder:
         return vectors
 
     async def embed_query(self, text: str) -> list[float]:
-        prompt = f"Instruct: {QUERY_TASK}\nQuery:{text}"
+        prompt = f"Instruct: {self._query_instruction}\nQuery:{text}"
         return (await self._embed([prompt]))[0]
 
     async def _embed(self, batch: list[str]) -> list[list[float]]:

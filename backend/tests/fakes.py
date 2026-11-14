@@ -57,3 +57,41 @@ class UnavailableEmbedder(FakeEmbedder):
         from app.embeddings.base import EmbedderUnavailableError
 
         raise EmbedderUnavailableError("Ollama is down (test)")
+
+    async def embed_query(self, text: str) -> list[float]:
+        from app.embeddings.base import EmbedderUnavailableError
+
+        raise EmbedderUnavailableError("Ollama is down (test)")
+
+
+class FakeLLM:
+    """A language model that returns a prepared answer and records what it was asked.
+
+    `response` is a dict, or a function that gets the user prompt and returns a dict, so a
+    test can build an answer that depends on the prompt (for example on excerpt numbers).
+    """
+
+    model_name = "fake-llm"
+
+    def __init__(self, response=None) -> None:
+        self.response = (
+            response
+            if response is not None
+            else {
+                "found": False,
+                "answer": "",
+                "citations": [],
+            }
+        )
+        self.calls: list[tuple[str, str, dict]] = []
+
+    async def generate_json(self, system: str, user: str, schema: dict) -> dict:
+        self.calls.append((system, user, schema))
+        return self.response(user) if callable(self.response) else self.response
+
+
+class UnavailableLLM(FakeLLM):
+    async def generate_json(self, system: str, user: str, schema: dict) -> dict:
+        from app.llm.base import LLMUnavailableError
+
+        raise LLMUnavailableError("Ollama is down (test)")

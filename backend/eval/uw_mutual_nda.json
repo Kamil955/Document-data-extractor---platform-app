@@ -1,0 +1,89 @@
+[
+  {
+    "question": "What is meant by Confidential Information?",
+    "expected_sections": [
+      "1"
+    ]
+  },
+  {
+    "question": "What duties does the receiving party have to protect confidential information?",
+    "expected_sections": [
+      "2"
+    ]
+  },
+  {
+    "question": "Which kinds of information are not covered by the confidentiality obligations?",
+    "expected_sections": [
+      "3"
+    ]
+  },
+  {
+    "question": "Does the Washington Public Records Act affect the confidentiality obligations?",
+    "expected_sections": [
+      "3"
+    ],
+    "expected_text": [
+      "Public Records Act"
+    ]
+  },
+  {
+    "question": "How must oral disclosures be identified, and within what time?",
+    "expected_sections": [
+      "4"
+    ]
+  },
+  {
+    "question": "Can the receiving party keep a copy of confidential information after returning it?",
+    "expected_sections": [
+      "4"
+    ]
+  },
+  {
+    "question": "Who owns the confidential information and is any license granted?",
+    "expected_sections": [
+      "5"
+    ]
+  },
+  {
+    "question": "How long does the agreement last?",
+    "expected_sections": [
+      "6"
+    ]
+  },
+  {
+    "question": "How much notice is needed to terminate the agreement?",
+    "expected_sections": [
+      "6"
+    ]
+  },
+  {
+    "question": "For how many years do the confidentiality obligations continue?",
+    "expected_sections": [
+      "6"
+    ]
+  },
+  {
+    "question": "May export-controlled or GDPR-protected information be transferred to the other party?",
+    "expected_sections": [
+      "7"
+    ]
+  },
+  {
+    "question": "Which state's law governs this agreement?",
+    "expected_sections": [
+      "8"
+    ]
+  },
+  {
+    "question": "Na jak długo zawarto umowę i po jakim czasie wygasa obowiązek zachowania poufności?",
+    "expected_sections": [
+      "6"
+    ]
+  },
+  {
+    "question": "Jakie prawo właściwe obowiązuje w tej umowie?",
+    "expected_sections": [
+      "8"
+    ]
+  }
+]

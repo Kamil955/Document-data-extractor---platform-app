@@ -1,0 +1,95 @@
+[
+  {
+    "question": "Is the contractor an employee or agent of the university?",
+    "expected_text": [
+      "not an agent"
+    ]
+  },
+  {
+    "question": "Who pays payroll taxes, and does the university provide benefits?",
+    "expected_text": [
+      "payroll tax"
+    ]
+  },
+  {
+    "question": "What are the contractor's workers' compensation and indemnification obligations?",
+    "expected_text": [
+      "subrogation"
+    ]
+  },
+  {
+    "question": "Must the contractor notify the university about work for competing organizations?",
+    "expected_text": [
+      "wants to be aware"
+    ]
+  },
+  {
+    "question": "What must be done with requests for consulting that come from the university's clients?",
+    "expected_text": [
+      "referred in writing"
+    ]
+  },
+  {
+    "question": "What insurance must the contractor have?",
+    "expected_text": [
+      "certificate of insurance",
+      "professional liability"
+    ]
+  },
+  {
+    "question": "How is the contractor paid for the services?",
+    "expected_text": [
+      "per day of instruction"
+    ]
+  },
+  {
+    "question": "Which travel rules must the contractor follow?",
+    "expected_text": [
+      "travel polic"
+    ]
+  },
+  {
+    "question": "Does this agreement replace the standard purchase order terms?",
+    "expected_text": [
+      "purchase order"
+    ]
+  },
+  {
+    "question": "How long is the term of the agreement?",
+    "expected_text": [
+      "June 30, 2015",
+      "term of this agreement"
+    ]
+  },
+  {
+    "question": "How can either party terminate the agreement?",
+    "expected_text": [
+      "one month"
+    ]
+  },
+  {
+    "question": "Does the contractor keep payment for work already performed if the agreement ends early?",
+    "expected_text": [
+      "quantum meruit"
+    ]
+  },
+  {
+    "question": "May the contractor license the program materials to competing organizations?",
+    "expected_text": [
+      "competing organizations"
+    ]
+  },
+  {
+    "question": "Czy wykonawca jest pracownikiem uniwersytetu?",
+    "expected_text": [
+      "not an agent"
+    ]
+  },
+  {
+    "question": "Na jak długo zawarto umowę i jak można ją wypowiedzieć?",
+    "expected_text": [
+      "one month",
+      "June 30, 2015"
+    ]
+  }
+]
