@@ -56,6 +56,8 @@ async def test_extract_with_a_stored_template(
     assert notice["supported"] and notice["citations"][0]["verified"]
     assert notice["citations"][0]["page_start"] == 2
     assert by_key["governing_law"]["value"] == "State of Washington"
+    # The chunks the model saw are part of the result, so a missing value can be debugged.
+    assert len(by_key["governing_law"]["retrieved"]) == 3
     # A field the document does not state is reported as not found, not guessed.
     assert by_key["term"]["found"] is False and by_key["term"]["citations"] == []
 
@@ -80,8 +82,8 @@ async def test_prompt_describes_the_field_and_its_type(
     )
 
     _, user_prompt, _ = llm.calls[0]
-    assert "'Termination notice' (days of written notice)" in user_prompt
-    assert "Give a number" in user_prompt
+    assert "about 'Termination notice' (days of written notice)" in user_prompt
+    assert "Answer with a number" in user_prompt
 
 
 async def test_each_field_is_searched_by_its_own_short_query(
@@ -166,3 +168,55 @@ async def test_model_down_is_503(
     )
 
     assert response.status_code == 503
+
+
+async def test_boolean_field_must_not_be_inferred_from_silence(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder, llm: FakeLLM
+) -> None:
+    document = await add_document(db_session, embedder)
+
+    await client.post(
+        f"/documents/{document.id}/extract",
+        json={"fields": [{"key": "nc", "label": "Non-compete", "type": "boolean"}]},
+    )
+
+    _, user_prompt, _ = llm.calls[0]
+    assert "explicitly" in user_prompt and "not address it" in user_prompt
+
+
+async def test_each_field_costs_exactly_one_model_call(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder, llm: FakeLLM
+) -> None:
+    document = await add_document(db_session, embedder)
+
+    await client.post(
+        f"/documents/{document.id}/extract", json={"fields": [{"key": "x", "label": "Anything"}]}
+    )
+
+    assert len(llm.calls) == 1
+
+
+async def test_a_negative_boolean_is_never_marked_verified(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder, llm: FakeLLM
+) -> None:
+    document = await add_document(db_session, embedder)
+    llm.response = lambda prompt: {
+        "found": True,
+        "answer": "No",
+        "citations": [
+            {"excerpt": excerpt_number(prompt, "ten (10)"), "quote": "ten (10) business days"}
+        ],
+    }
+    fields = [
+        {"key": "nc", "label": "Non-compete", "type": "boolean"},
+        {"key": "txt", "label": "Notice", "type": "text"},
+    ]
+
+    results = (
+        await client.post(f"/documents/{document.id}/extract", json={"fields": fields})
+    ).json()["results"]
+
+    by_key = {r["key"]: r for r in results}
+    # The quote is real, but a quote cannot prove that a clause does not exist.
+    assert by_key["nc"]["found"] is True and by_key["nc"]["supported"] is False
+    assert by_key["txt"]["value"] == "No" and by_key["txt"]["supported"] is True

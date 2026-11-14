@@ -12,7 +12,12 @@ router = APIRouter(tags=["search"])
 async def search(body: SearchRequest, session: SessionDep, embedder: EmbedderDep):
     try:
         hits = await search_chunks(
-            session, embedder, body.query, limit=body.limit, document_id=body.document_id
+            session,
+            embedder,
+            body.query,
+            limit=body.limit,
+            document_id=body.document_id,
+            mode=body.mode,
         )
     except EmbedderUnavailableError as exc:
         # 503: the problem is temporary and on our side (Ollama down), the client may retry.

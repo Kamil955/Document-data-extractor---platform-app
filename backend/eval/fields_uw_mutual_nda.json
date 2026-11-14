@@ -1,0 +1,10 @@
+[
+  {"key": "term", "label": "Term of the agreement", "description": "how long the agreement lasts or when it ends", "expected_any": ["one (1) year", "1 year"]},
+  {"key": "termination_notice", "label": "Termination notice", "description": "written notice needed to terminate the agreement", "expected_any": ["ten (10) business days", "10 business days"]},
+  {"key": "governing_law", "label": "Governing law", "description": "which state or country law governs the agreement", "expected_any": ["Washington"]},
+  {"key": "confidentiality_period", "label": "Confidentiality period", "description": "how long confidentiality obligations continue", "expected_any": ["five (5) years", "5 years"]},
+  {"key": "oral_disclosure_window", "label": "Written confirmation of oral disclosures", "description": "time allowed to identify oral disclosures as confidential in writing", "expected_any": ["thirty (30) days", "30 days"]},
+  {"key": "payment_terms", "label": "Payment terms", "description": "amount, rate or schedule of payment for the services", "expect_found": false},
+  {"key": "liability_cap", "label": "Liability limit", "description": "limitation of liability", "expect_found": false},
+  {"key": "has_non_compete", "label": "Non-compete", "description": "whether the agreement contains a non-compete clause", "type": "boolean", "expect_found": false}
+]

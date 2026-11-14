@@ -1,6 +1,7 @@
 import re
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -41,6 +42,8 @@ class SearchRequest(BaseModel):
     limit: int = Field(default=5, ge=1, le=20)
     # Restrict the search to one document; None searches all of them.
     document_id: uuid.UUID | None = None
+    # "vector" = meaning only (default; best in our measurements); "hybrid" = + keywords.
+    mode: Literal["hybrid", "vector"] = "vector"
 
 
 class SearchHitOut(BaseModel):
@@ -156,7 +159,9 @@ class ExtractRequest(BaseModel):
 
     template_id: uuid.UUID | None = None
     fields: list[FieldIn] | None = Field(default=None, min_length=1, max_length=100)
-    limit: int = Field(default=5, ge=1, le=10)
+    # More chunks than /ask uses: a short field query lands less precisely than a full
+    # question, and measured on real contracts 10 chunks found values that 5 missed.
+    limit: int = Field(default=8, ge=1, le=10)
 
     @field_validator("fields")
     @classmethod
@@ -179,6 +184,8 @@ class FieldResultOut(BaseModel):
     # found AND a verified citation. found=True with supported=False needs a human check.
     supported: bool
     citations: list[CitationOut]
+    # The chunks the model was given for this field: what to look at when a value is missing.
+    retrieved: list[RetrievedOut]
     error: str | None
 
 

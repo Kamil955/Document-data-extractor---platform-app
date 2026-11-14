@@ -36,6 +36,9 @@ def main() -> int:
     parser.add_argument("questions", type=Path, help="JSON file with questions")
     parser.add_argument("--document", type=uuid.UUID, required=True)
     parser.add_argument("--api", default="http://localhost:8000")
+    parser.add_argument(
+        "--mode", choices=["hybrid", "vector"], default="vector", help="search mode to measure"
+    )
     args = parser.parse_args()
 
     questions = json.loads(args.questions.read_text(encoding="utf-8"))
@@ -54,7 +57,12 @@ def main() -> int:
                 continue
             response = client.post(
                 "/search",
-                json={"query": item["question"], "limit": TOP_K, "document_id": str(args.document)},
+                json={
+                    "query": item["question"],
+                    "limit": TOP_K,
+                    "document_id": str(args.document),
+                    "mode": args.mode,
+                },
             )
             response.raise_for_status()
             hits = response.json()
@@ -69,7 +77,8 @@ def main() -> int:
 
     summary = summarize(ranks)
     print(
-        f"\n{summary.questions} questions ({skipped} skipped: expected section not indexed) | "
+        f"\n[{args.mode}] {summary.questions} questions "
+        f"({skipped} skipped: expected section not indexed) | "
         f"hit@1 {summary.hit_at_1:.0%} | "
         f"hit@3 {summary.hit_at_3:.0%} | hit@5 {summary.hit_at_5:.0%} | MRR {summary.mrr:.2f}"
     )
