@@ -36,6 +36,10 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+
+      # Azure Blob emulator for the storage tests, the same image docker compose uses.
+      # No health check: the storage client retries the connection on startup, and its default
+      # connection string already points at localhost:4577.
       floci-az:
         image: floci/floci-az:latest
         ports:
@@ -45,7 +49,7 @@ jobs:
       DATABASE_URL: postgresql+psycopg://contract:contract@localhost:5432/contract
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
 
       - uses: astral-sh/setup-uv@v7
         with:
@@ -61,16 +65,36 @@ jobs:
       - run: uv run alembic upgrade head
       # Fails when the models changed but nobody wrote a migration for the change.
       - run: uv run alembic check
-      # The emulator has no health check configured here, so wait until it answers.
-      - name: Wait for floci-az
-        run: curl --retry 15 --retry-connrefused --retry-delay 1 --fail http://localhost:4577/health
+
       - run: uv run pytest
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          # Caches ~/.npm, keyed by the lock file.
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # npm ci installs exactly what package-lock.json says (npm install could change it).
+      - run: npm ci
+      - run: npm run lint
+      # Next.js does not type-check in lint, so run the TypeScript compiler explicitly.
+      - run: npx tsc --noEmit
+      # Proves the production build works (routes, Suspense boundaries, Tailwind).
+      - run: npm run build
 
   docker:
     runs-on: ubuntu-latest
     needs: backend
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
       # Build only (no push): proves the Dockerfile still works.
       - run: docker build -t contract-extractor-backend ./backend
-

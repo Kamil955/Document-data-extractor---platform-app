@@ -112,3 +112,75 @@ async def test_deleting_the_document_deletes_its_extractions(
     await client.delete(f"/documents/{created['document_id']}")
 
     assert (await client.get(f"/extractions/{created['extraction_id']}")).status_code == 404
+
+
+async def test_a_person_can_correct_a_value_and_it_counts_as_verified(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder, llm: FakeLLM
+) -> None:
+    created = await extract(client, db_session, embedder, llm)
+    url = f"/extractions/{created['extraction_id']}"
+
+    response = await client.patch(f"{url}/values/term", json={"value": "  two years  "})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["value"] == "two years" and body["found"] and body["supported"] and body["edited"]
+    fetched = (await client.get(url)).json()
+    term = next(r for r in fetched["results"] if r["key"] == "term")
+    assert term["value"] == "two years" and term["edited"] is True  # saved, not just returned
+    untouched = next(r for r in fetched["results"] if r["key"] == "governing_law")
+    assert untouched["edited"] is False
+
+
+async def test_corrected_value_ends_up_in_the_filled_document(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder, llm: FakeLLM
+) -> None:
+    created = await extract(client, db_session, embedder, llm)  # "term" was not found
+    url = f"/extractions/{created['extraction_id']}"
+    await client.patch(f"{url}/values/term", json={"value": "two years"})
+
+    response = await client.post(
+        f"{url}/fill", files={"file": ("s.docx", make_template_docx(), DOCX_MIME)}
+    )
+
+    assert response.headers["x-fill-missing"] == ""
+    assert response.headers["x-fill-filled"] == "3"
+    assert "term: two years;" in Document(io.BytesIO(response.content)).paragraphs[1].text
+
+
+async def test_clearing_a_value_makes_it_missing_again(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder, llm: FakeLLM
+) -> None:
+    created = await extract(client, db_session, embedder, llm)
+    url = f"/extractions/{created['extraction_id']}"
+
+    body = (await client.patch(f"{url}/values/governing_law", json={"value": "  "})).json()
+
+    assert body["found"] is False and body["supported"] is False and body["value"] == ""
+
+
+async def test_correcting_an_unknown_field_or_extraction_is_404(
+    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder, llm: FakeLLM
+) -> None:
+    created = await extract(client, db_session, embedder, llm)
+
+    unknown_field = await client.patch(
+        f"/extractions/{created['extraction_id']}/values/nope", json={"value": "x"}
+    )
+    unknown_extraction = await client.patch(
+        f"/extractions/{uuid.uuid4()}/values/term", json={"value": "x"}
+    )
+
+    assert unknown_field.status_code == 404 and unknown_extraction.status_code == 404
+
+
+async def test_the_frontend_origin_is_allowed_by_cors(client: AsyncClient) -> None:
+    response = await client.options(
+        "/templates",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"

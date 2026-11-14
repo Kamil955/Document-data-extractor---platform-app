@@ -150,3 +150,22 @@ The `X-Fill-*` response headers list the placeholders that were filled, not foun
 (a value without a verified quote) or unknown (no such field). In the document, not found values
 are marked yellow and unverified values turquoise. Placeholders are found even when Word splits
 them over several runs; text boxes, footnotes and hyperlinks are not covered yet.
+
+## Frontend (review screen)
+
+A Next.js app (TypeScript, Tailwind) on top of the API: upload documents, define templates, run
+an extraction and review every value next to its quote and page. A value without a verified quote
+is marked "Needs check"; you can correct or confirm it (`PATCH /extractions/{id}/values/{key}`),
+then fill a Word template from the confirmed values.
+
+```bash
+docker compose up -d --build   # the API must be running
+cd frontend
+npm ci
+npm run dev                    # http://localhost:3000
+```
+
+The API address is `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). The API allows
+the origin `http://localhost:3000` (CORS); to serve the frontend from another origin set
+`CORS_ORIGINS='["https://your.host"]'` for the backend. Checks: `npm run lint`,
+`npx tsc --noEmit`, `npm run build` (CI runs all three).

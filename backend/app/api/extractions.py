@@ -9,7 +9,7 @@ from app.api.documents import clean_filename, detect_content_type
 from app.core.content_types import DOCX_MIME
 from app.filling.docx import DocxFillError, FillValue, fill_docx
 from app.models import Extraction
-from app.schemas import ExtractResponse, FieldResultOut
+from app.schemas import ExtractResponse, FieldResultOut, ValueUpdate
 
 router = APIRouter(prefix="/extractions", tags=["extractions"])
 
@@ -30,6 +30,27 @@ async def get_extraction(extraction_id: uuid.UUID, session: SessionDep) -> Extra
     if extraction is None:
         raise HTTPException(status_code=404, detail="extraction not found")
     return _response(extraction)
+
+
+@router.patch("/{extraction_id}/values/{key}", response_model=FieldResultOut)
+async def correct_value(
+    extraction_id: uuid.UUID, key: str, body: ValueUpdate, session: SessionDep
+) -> FieldResultOut:
+    """Let a person correct (or fill in) one value. The result then counts as verified."""
+    extraction = await session.get(Extraction, extraction_id)
+    if extraction is None:
+        raise HTTPException(status_code=404, detail="extraction not found")
+    # A new list: SQLAlchemy does not notice changes made inside a JSONB value in place.
+    results = [dict(item) for item in extraction.results]
+    item = next((r for r in results if r["key"] == key), None)
+    if item is None:
+        raise HTTPException(status_code=404, detail="field not found in this extraction")
+    value = body.value.strip()
+    # The citations stay: they show where the model looked, even if the person disagreed.
+    item.update(value=value, found=bool(value), supported=bool(value), edited=True, error=None)
+    extraction.results = results
+    await session.commit()
+    return FieldResultOut(**item)
 
 
 @router.post("/{extraction_id}/fill")

@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* System fonts: no network request at build time, so the build works offline and in CI. */
+@theme inline {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+body {
+  background: #fafafa;
+  color: #18181b;
+  font-family: var(--font-sans);
+}
