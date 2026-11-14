@@ -1,0 +1,198 @@
+[
+  {
+    "question": "How long must the provider keep records for audit purposes?",
+    "expected_sections": [
+      "10.1"
+    ]
+  },
+  {
+    "question": "Under what circumstances can the customer terminate the whole agreement?",
+    "expected_sections": [
+      "13.1.1"
+    ]
+  },
+  {
+    "question": "Can the provider terminate the agreement, and when?",
+    "expected_sections": [
+      "13.1.2"
+    ]
+  },
+  {
+    "question": "What happens when a force majeure event occurs?",
+    "expected_sections": [
+      "13.5"
+    ]
+  },
+  {
+    "question": "Which law governs the agreement and where are disputes heard?",
+    "expected_sections": [
+      "16.12"
+    ]
+  },
+  {
+    "question": "How must notices be delivered between the parties?",
+    "expected_sections": [
+      "16.10"
+    ]
+  },
+  {
+    "question": "Which document prevails if the agreement conflicts with an order form?",
+    "expected_sections": [
+      "16.14"
+    ]
+  },
+  {
+    "question": "Can either party assign the agreement to someone else?",
+    "expected_sections": [
+      "16.6"
+    ]
+  },
+  {
+    "question": "How is each party's liability limited?",
+    "expected_sections": [
+      "14.2"
+    ]
+  },
+  {
+    "question": "What insurance coverage must the provider carry?",
+    "expected_sections": [
+      "12"
+    ]
+  },
+  {
+    "question": "How are disputed invoice amounts handled?",
+    "expected_sections": [
+      "6.4.6"
+    ]
+  },
+  {
+    "question": "May the customer set off amounts the provider owes against payments?",
+    "expected_sections": [
+      "6.4.4"
+    ]
+  },
+  {
+    "question": "Who owns the work products created under the agreement?",
+    "expected_sections": [
+      "8.1.2",
+      "8.1"
+    ]
+  },
+  {
+    "question": "What rights apply if the provider goes bankrupt?",
+    "expected_sections": [
+      "13.6.2",
+      "13.6.3"
+    ]
+  },
+  {
+    "question": "What are the obligations to keep information confidential?",
+    "expected_sections": [
+      "7.1.1"
+    ]
+  },
+  {
+    "question": "Is the provider allowed to use subcontractors?",
+    "expected_sections": [
+      "4.7.4"
+    ]
+  },
+  {
+    "question": "How does a party request a change to the services?",
+    "expected_sections": [
+      "4.9"
+    ]
+  },
+  {
+    "question": "What step-in rights does the customer have?",
+    "expected_sections": [
+      "4.12"
+    ]
+  },
+  {
+    "question": "What credits apply when service levels are missed?",
+    "expected_sections": [
+      "5.2"
+    ]
+  },
+  {
+    "question": "How are taxes withheld from payments to the provider?",
+    "expected_sections": [
+      "6.3.5"
+    ]
+  },
+  {
+    "question": "What must the provider warrant about malicious code in its deliverables?",
+    "expected_sections": [
+      "9.7.1"
+    ]
+  },
+  {
+    "question": "How and when are services or deliverables accepted?",
+    "expected_sections": [
+      "4.8"
+    ]
+  },
+  {
+    "question": "Is the provider the exclusive supplier of these services?",
+    "expected_sections": [
+      "4.14"
+    ]
+  },
+  {
+    "question": "What is the procedure for escalating a dispute?",
+    "expected_sections": [
+      "15.1.1"
+    ]
+  },
+  {
+    "question": "What help must the provider give when the agreement ends (disengagement)?",
+    "expected_sections": [
+      "13.7.3",
+      "13.7.2"
+    ]
+  },
+  {
+    "question": "Jak długo dostawca musi przechowywać dokumentację na potrzeby audytu?",
+    "expected_sections": [
+      "10.1"
+    ]
+  },
+  {
+    "question": "Jakie prawo właściwe reguluje umowę?",
+    "expected_sections": [
+      "16.12"
+    ]
+  },
+  {
+    "question": "Kto jest właścicielem rezultatów prac wykonanych w ramach umowy?",
+    "expected_sections": [
+      "8.1.2",
+      "8.1"
+    ]
+  },
+  {
+    "question": "Czy strona może przenieść prawa i obowiązki z umowy na osobę trzecią?",
+    "expected_sections": [
+      "16.6"
+    ]
+  },
+  {
+    "question": "Does a party lose a right if it fails to enforce a provision of the agreement?",
+    "expected_sections": [
+      "16.11"
+    ]
+  },
+  {
+    "question": "Who is responsible for the acts and omissions of the provider's personnel?",
+    "expected_sections": [
+      "4.7.5"
+    ]
+  },
+  {
+    "question": "Which resources must the provider supply at its own cost to deliver the products?",
+    "expected_sections": [
+      "4.6.1"
+    ]
+  }
+]

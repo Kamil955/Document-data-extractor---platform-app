@@ -27,6 +27,19 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     embedding_model: str = "qwen3-embedding:0.6b"
 
+    # Instruction prepended to every search QUERY (not to documents) for instruction-aware
+    # embedding models such as Qwen3-Embedding. Kept neutral so it suits any document type;
+    # measure with app.evaluation.run before changing it.
+    embedding_query_instruction: str = (
+        "Given a question, retrieve the passages of the document that answer it"
+    )
+
+    # Language model used to answer questions (see app/llm). Context 8192 tokens is enough
+    # for 5 excerpts of ~1500 characters plus the prompt, and keeps VRAM use small.
+    llm_model: str = "qwen3.5:9b"
+    llm_num_ctx: int = 8192
+    llm_timeout_seconds: float = 300.0
+
     # Chunking, in characters (see ingestion/chunking.py for the reasoning).
     chunk_max_chars: int = 1500
     chunk_overlap_chars: int = 200

@@ -1,0 +1,70 @@
+[
+  {
+    "question": "How long does the agreement remain in effect?",
+    "expected_any": [
+      "one (1) year",
+      "1 year",
+      "one year"
+    ]
+  },
+  {
+    "question": "How much written notice is needed to terminate the agreement?",
+    "expected_any": [
+      "ten (10) business days",
+      "10 business days",
+      "ten business days"
+    ]
+  },
+  {
+    "question": "For how long do the confidentiality obligations continue after disclosure?",
+    "expected_any": [
+      "five (5) years",
+      "5 years",
+      "five years"
+    ]
+  },
+  {
+    "question": "Within how many days must oral disclosures be identified in writing?",
+    "expected_any": [
+      "thirty (30) days",
+      "30 days",
+      "thirty days"
+    ]
+  },
+  {
+    "question": "Which state's law governs the agreement?",
+    "expected_any": [
+      "Washington",
+      "Waszyngton"
+    ]
+  },
+  {
+    "question": "What approval is needed before export-controlled or GDPR information is transferred?",
+    "expected_any": [
+      "written consent",
+      "prior written"
+    ]
+  },
+  {
+    "question": "Na jak długo zawarto umowę?",
+    "expected_any": [
+      "rok",
+      "year"
+    ]
+  },
+  {
+    "question": "Jakie prawo właściwe obowiązuje w umowie?",
+    "expected_any": [
+      "Washington",
+      "Waszyngton"
+    ]
+  },
+  {
+    "question": "What is the penalty for late payment?",
+    "expect_found": false
+  },
+  {
+    "question": "What is the purchase price of the goods?",
+    "expect_found": false
+  }
+]

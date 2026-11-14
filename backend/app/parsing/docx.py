@@ -5,7 +5,7 @@ from docx.table import Table
 from docx.text.paragraph import Paragraph
 
 from app.parsing.base import Block, ParseError
-from app.parsing.headings import looks_like_heading
+from app.parsing.headings import expand_run_in_headings, looks_like_heading
 
 
 def parse_docx(data: bytes) -> list[Block]:
@@ -25,6 +25,9 @@ def parse_docx(data: bytes) -> list[Block]:
             if text:
                 # A Word document says explicitly what a heading is: its paragraph style.
                 style = (paragraph.style.name if paragraph.style is not None else "") or ""
+                # Word marks table-of-contents entries with the styles "TOC 1", "TOC 2"...
+                if style.lower().startswith("toc "):
+                    continue
                 is_heading = style.startswith(("Heading", "Title")) or looks_like_heading(text)
                 blocks.append(Block(text, None, is_heading))
         elif child.tag.endswith("}tbl"):
@@ -34,4 +37,4 @@ def parse_docx(data: bytes) -> list[Block]:
                 line = " | ".join(cell for cell in cells if cell)
                 if line:
                     blocks.append(Block(line, None, False))
-    return blocks
+    return expand_run_in_headings(blocks)

@@ -5,11 +5,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.api.deps import get_storage
+from app.api.deps import get_embedder, get_llm, get_storage
 from app.core.config import get_settings
 from app.core.db import get_session
 from app.main import app
-from tests.fakes import InMemoryStorage
+from tests.fakes import FakeEmbedder, FakeLLM, InMemoryStorage
 
 
 @pytest.fixture
@@ -43,7 +43,19 @@ def storage() -> InMemoryStorage:
 
 
 @pytest.fixture
-async def client(db_session: AsyncSession, storage: InMemoryStorage) -> AsyncIterator[AsyncClient]:
+def embedder() -> FakeEmbedder:
+    return FakeEmbedder()
+
+
+@pytest.fixture
+def llm() -> FakeLLM:
+    return FakeLLM()
+
+
+@pytest.fixture
+async def client(
+    db_session: AsyncSession, storage: InMemoryStorage, embedder: FakeEmbedder, llm: FakeLLM
+) -> AsyncIterator[AsyncClient]:
     # Route the app through the test session and the in-memory storage instead of the
     # real database engine and Azure. (The app's lifespan does not run under
     # ASGITransport, so app.state.storage is never created here: the override is needed.)
@@ -52,6 +64,8 @@ async def client(db_session: AsyncSession, storage: InMemoryStorage) -> AsyncIte
 
     app.dependency_overrides[get_session] = override_get_session
     app.dependency_overrides[get_storage] = lambda: storage
+    app.dependency_overrides[get_embedder] = lambda: embedder
+    app.dependency_overrides[get_llm] = lambda: llm
     # ASGITransport calls the app in-process: no real network, no running server.
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
         yield http

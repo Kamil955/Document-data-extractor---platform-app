@@ -84,3 +84,47 @@ def test_footer_is_not_a_section_in_a_real_pdf() -> None:
     assert [b.text for b in blocks if b.is_heading] == [
         f"{n}. {t}" for n, t in enumerate(titles, 1)
     ]
+
+
+def test_page_counters_that_restart_in_an_attachment_are_removed() -> None:
+    from app.parsing.pdf import strip_running_lines
+
+    # 12 pages; pages 5-9 carry "1 Master Agreement" ... "5 Master Agreement" (5 of 12 pages:
+    # below the 50% share rule, so only the page-counter rule can remove them).
+    words = "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima".split()
+    pages = [[f"body text {word}"] for word in words]
+    for n in range(5, 10):
+        pages[n - 1].insert(0, f"{n - 4} [*****] Master Agreement")
+
+    cleaned = strip_running_lines(pages)
+
+    assert all("Master Agreement" not in line for lines in cleaned for line in lines)
+    assert cleaned[4] == ["body text echo"]
+
+
+def test_numbered_lines_without_a_constant_page_offset_are_kept() -> None:
+    from app.parsing.pdf import strip_running_lines
+
+    numbers = [1, 3, 2, 5, 4]  # "Article N" on 5 of 12 pages, numbers unrelated to the page
+    pages = [[f"body text {chr(97 + i)}"] for i in range(12)]
+    for page_index, number in enumerate(numbers):
+        pages[page_index].insert(0, f"Article {number}")
+
+    cleaned = strip_running_lines(pages)
+
+    assert [lines[0] for lines in cleaned[:5]] == [f"Article {n}" for n in numbers]
+
+
+def test_run_in_headings_become_sections_in_a_real_pdf() -> None:
+    page = [
+        "MUTUAL NONDISCLOSURE AGREEMENT",
+        "1. Definitions. For purposes of this Agreement, the following definitions apply.",
+        "2. Term. This Agreement shall remain in force for one year from the Effective Date.",
+    ]
+    blocks = parse_pdf(make_pdf([page]))
+
+    assert [b.text for b in blocks if b.is_heading] == [
+        "MUTUAL NONDISCLOSURE AGREEMENT",
+        "1. Definitions.",
+        "2. Term.",
+    ]

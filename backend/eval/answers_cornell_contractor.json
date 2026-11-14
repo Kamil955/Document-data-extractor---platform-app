@@ -1,0 +1,49 @@
+[
+  {
+    "question": "What is the latest date by which the term of this agreement ends?",
+    "expected_any": [
+      "June 30, 2015",
+      "2015"
+    ]
+  },
+  {
+    "question": "How much notice is needed to terminate the agreement without cause?",
+    "expected_any": [
+      "one month",
+      "1 month"
+    ]
+  },
+  {
+    "question": "On what basis is the contractor paid?",
+    "expected_any": [
+      "per day"
+    ]
+  },
+  {
+    "question": "Who provides professional liability coverage to contractors that do not carry their own?",
+    "expected_any": [
+      "Cornell"
+    ]
+  },
+  {
+    "question": "How must the contractor describe their association with the university?",
+    "expected_any": [
+      "Adjunct Instructor"
+    ]
+  },
+  {
+    "question": "What must the contractor do about the university's travel policies?",
+    "expected_any": [
+      "travel polic",
+      "abide"
+    ]
+  },
+  {
+    "question": "What is the governing law of the agreement?",
+    "expect_found": false
+  },
+  {
+    "question": "What is the contractor's hourly rate?",
+    "expect_found": false
+  }
+]
