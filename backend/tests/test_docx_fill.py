@@ -196,3 +196,15 @@ def test_the_example_docx_only_uses_fields_of_the_example_template() -> None:
     placeholders = find_placeholders((examples / "contract_summary_template.docx").read_bytes())
 
     assert placeholders and set(placeholders) <= keys
+
+
+def test_placeholders_are_listed_in_reading_order_also_across_tables() -> None:
+    document = Document()
+    document.add_paragraph("{{first}}")
+    table = document.add_table(rows=1, cols=1)
+    table.rows[0].cells[0].text = "{{second}}"
+    document.add_paragraph("{{third}}")
+    buffer = io.BytesIO()
+    document.save(buffer)
+
+    assert find_placeholders(buffer.getvalue()) == ["first", "second", "third"]

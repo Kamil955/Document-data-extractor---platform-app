@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, api } from "@/lib/api";
 import type { FieldType, Template } from "@/lib/types";
-import { ErrorBox, PageHeader, Spinner, buttonClass, inputClass, secondaryButtonClass } from "./ui";
+import { Badge, ErrorBox, PageHeader, Spinner, buttonClass, inputClass, secondaryButtonClass } from "./ui";
 
 const FIELD_TYPES: FieldType[] = ["text", "number", "date", "boolean"];
 
@@ -36,6 +37,8 @@ export function TemplatesView() {
   const [description, setDescription] = useState("");
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
   const [saving, setSaving] = useState(false);
+  const wordInput = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -87,6 +90,21 @@ export function TemplatesView() {
     }
   }
 
+  // The fields are read from the {{placeholders}} in the file; the name defaults to the file name.
+  async function importDocx(file: File) {
+    setImporting(true);
+    setError(null);
+    try {
+      await api.createTemplateFromDocx(file, name.trim() || null);
+      setName("");
+      await refresh();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  }
+
   async function remove(template: Template) {
     if (!window.confirm(`Delete template "${template.name}"? Saved extractions are kept.`)) return;
     try {
@@ -102,8 +120,33 @@ export function TemplatesView() {
       <PageHeader title="Templates" />
       {error && <ErrorBox>{error}</ErrorBox>}
 
+      <section className="mb-6 rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
+        <h2 className="text-sm font-semibold text-zinc-900">Create from a Word file</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          Upload a .docx that contains placeholders such as <code className="font-mono">{"{{governing_law}}"}</code>. Each
+          placeholder becomes a field, and the document is kept with the template. The name below (optional) is used if filled in.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <input
+            ref={wordInput}
+            type="file"
+            accept=".docx"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) void importDocx(file);
+            }}
+          />
+          <button className={buttonClass} disabled={importing} onClick={() => wordInput.current?.click()}>
+            Choose .docx file
+          </button>
+          {importing && <Spinner />}
+        </div>
+      </section>
+
       <section className="mb-10 rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-        <h2 className="mb-4 text-sm font-semibold text-zinc-900">New template</h2>
+        <h2 className="mb-4 text-sm font-semibold text-zinc-900">New template from scratch</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <input className={inputClass} placeholder="Name, e.g. Contract basics" value={name} onChange={(e) => setName(e.target.value)} />
           <input className={inputClass} placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
@@ -177,12 +220,24 @@ export function TemplatesView() {
           <li key={template.id} className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-zinc-200">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-medium text-zinc-900">{template.name}</p>
+                <p className="flex flex-wrap items-center gap-2 font-medium text-zinc-900">
+                  {template.name}
+                  {template.docx_filename ? (
+                    <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-600/20">Word document</Badge>
+                  ) : (
+                    <Badge className="bg-zinc-50 text-zinc-600 ring-zinc-500/20">No document</Badge>
+                  )}
+                </p>
                 {template.description && <p className="text-sm text-zinc-500">{template.description}</p>}
               </div>
-              <button className={secondaryButtonClass} onClick={() => void remove(template)}>
-                Delete
-              </button>
+              <div className="flex gap-2">
+                <Link href={`/templates/${template.id}`} className={secondaryButtonClass}>
+                  Open
+                </Link>
+                <button className={secondaryButtonClass} onClick={() => void remove(template)}>
+                  Delete
+                </button>
+              </div>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {template.fields.map((field) => (

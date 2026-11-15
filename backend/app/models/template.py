@@ -29,6 +29,10 @@ class Template(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
+    # The Word document this template fills (optional): a DOCX with {{field_key}} placeholders.
+    # The file lives in object storage under docx_key; only its name is kept for display.
+    docx_key: Mapped[str | None] = mapped_column(String(512))
+    docx_filename: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # selectin: async SQLAlchemy cannot lazy-load on attribute access, so fields are loaded
     # together with the template (one extra query for all templates, not one per template).
