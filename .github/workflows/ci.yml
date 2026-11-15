@@ -86,6 +86,8 @@ jobs:
       # npm ci installs exactly what package-lock.json says (npm install could change it).
       - run: npm ci
       - run: npm run lint
+      # Unit tests of the pure logic (finding a quote in a page of text).
+      - run: npm test
       # Next.js does not type-check in lint, so run the TypeScript compiler explicitly.
       - run: npx tsc --noEmit
       # Proves the production build works (routes, Suspense boundaries, Tailwind).

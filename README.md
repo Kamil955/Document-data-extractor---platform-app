@@ -168,7 +168,11 @@ them over several runs; text boxes, footnotes and hyperlinks are not covered yet
 A Next.js app (TypeScript, Tailwind) on top of the API: upload documents, define templates, run
 an extraction and review every value next to its quote and page. A value without a verified quote
 is marked "Needs check"; you can correct or confirm it (`PATCH /extractions/{id}/values/{key}`),
-then fill a Word template from the confirmed values.
+then fill a Word template from the confirmed values. "Show in document" under a quote opens
+the source in a side panel: the PDF page with the quote highlighted (pdf.js, in the browser), or
+the cited passage as text for Word files. The highlight is found by comparing letters and digits
+only, so differences in line breaks, hyphenation and spacing between the PDF and the text the
+model saw do not matter; if the quote cannot be found on the page, the panel says so.
 
 ```bash
 docker compose up -d --build   # the API must be running
@@ -180,4 +184,4 @@ npm run dev                    # http://localhost:3000
 The API address is `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). The API allows
 the origin `http://localhost:3000` (CORS); to serve the frontend from another origin set
 `CORS_ORIGINS='["https://your.host"]'` for the backend. Checks: `npm run lint`,
-`npx tsc --noEmit`, `npm run build` (CI runs all three).
+`npm test`, `npx tsc --noEmit`, `npm run build` (CI runs all of them).

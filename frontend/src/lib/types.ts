@@ -12,6 +12,15 @@ export interface DocumentItem {
   created_at: string;
 }
 
+export interface Chunk {
+  id: string;
+  chunk_index: number;
+  text: string;
+  page_start: number | null;
+  page_end: number | null;
+  section_path: string | null;
+}
+
 export type FieldType = "text" | "number" | "date" | "boolean";
 
 export interface TemplateField {

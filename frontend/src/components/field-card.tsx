@@ -13,7 +13,7 @@ function pageLabel(citation: Citation): string | null {
     : `p. ${citation.page_start}`;
 }
 
-function CitationView({ citation }: { citation: Citation }) {
+function CitationView({ citation, onShow }: { citation: Citation; onShow: (citation: Citation) => void }) {
   const where = [pageLabel(citation), citation.section_path].filter(Boolean).join(" · ");
   return (
     <blockquote
@@ -22,7 +22,10 @@ function CitationView({ citation }: { citation: Citation }) {
       }`}
     >
       <p className="text-zinc-800">“{citation.quote}”</p>
-      <p className="mt-1 text-xs text-zinc-500">
+      <p className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-zinc-500">
+        <button className="font-medium text-zinc-700 underline hover:text-zinc-900" onClick={() => onShow(citation)}>
+          Show in document
+        </button>
         {where || "location unknown"}
         {!citation.verified && (
           <span className="ml-2 font-medium text-amber-800">
@@ -38,11 +41,13 @@ export function FieldCard({
   extractionId,
   field,
   onSaved,
+  onShowSource,
   locked,
 }: {
   extractionId: string;
   field: FieldResult;
   onSaved: (field: FieldResult) => void;
+  onShowSource: (citation: Citation) => void;
   // True while the worker is still running: the API refuses changes then (409).
   locked: boolean;
 }) {
@@ -121,7 +126,7 @@ export function FieldCard({
       {field.citations.length > 0 && (
         <div className="mt-3 space-y-2">
           {field.citations.map((citation, i) => (
-            <CitationView key={i} citation={citation} />
+            <CitationView key={i} citation={citation} onShow={onShowSource} />
           ))}
         </div>
       )}

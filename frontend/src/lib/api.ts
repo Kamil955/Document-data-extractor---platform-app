@@ -1,4 +1,5 @@
 import type {
+  Chunk,
   DocumentItem,
   Extraction,
   ExtractionSummary,
@@ -67,6 +68,13 @@ export const api = {
   },
 
   getDocument: (id: string) => json<DocumentItem>(`/documents/${id}`),
+
+  // The original file, for the source viewer.
+  async downloadDocument(id: string): Promise<ArrayBuffer> {
+    return (await request(`/documents/${id}/file`)).arrayBuffer();
+  },
+
+  listChunks: (id: string) => json<Chunk[]>(`/documents/${id}/chunks`),
 
   listTemplates: () => json<Template[]>("/templates"),
 
