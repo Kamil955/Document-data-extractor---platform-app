@@ -115,8 +115,11 @@ export function TemplateDetail() {
                 if (file) void act(() => api.putTemplateDocx(id, file), "Upload failed");
               }}
             />
+            <Link href={`/templates/${id}/edit`} className={buttonClass}>
+              {template.docx_filename ? "Edit document" : "Write the document"}
+            </Link>
             {!template.docx_filename && (
-              <button className={buttonClass} disabled={busy} onClick={() => void act(() => api.generateTemplateDocx(id), "Generating failed")}>
+              <button className={secondaryButtonClass} disabled={busy} onClick={() => void act(() => api.generateTemplateDocx(id), "Generating failed")}>
                 Generate a starter document
               </button>
             )}
@@ -134,8 +137,8 @@ export function TemplateDetail() {
 
         {!template.docx_filename && (
           <p className="rounded-md bg-zinc-50 p-4 text-sm text-zinc-600 ring-1 ring-zinc-200">
-            This template has no document yet. Generate a starter one from the fields (download it, style it in Word, upload it
-            back), or upload your own .docx with placeholders such as <code className="font-mono">{"{{governing_law}}"}</code>.
+            This template has no document yet. Write it in the editor here, generate a starter one from the fields, or upload your
+            own .docx with placeholders such as <code className="font-mono">{"{{governing_law}}"}</code>.
           </p>
         )}
 

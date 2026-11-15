@@ -192,6 +192,31 @@ it with `uv run python examples/build_example_templates.py`. In the frontend, th
 page creates a template from a Word file and its page shows the document with the placeholders
 highlighted (green = a field fills it, red = no such field).
 
+## Template editor and AI rewrite
+
+A template's document can be written and edited in the browser (`/templates/{id}/edit`): a paper
+page with headings, bold/italic/underline, bullet lists and tables, and a Fields panel whose
+entries insert `{{placeholders}}` at the cursor (typing `{{key}}` works too). Placeholders that
+are not fields of the template are drawn red. Select text inside one paragraph and press
+**Ask AI** (or Ctrl+K) to rewrite it: pick a preset ("Make it more formal") or type your own
+instruction, read the suggestion and press **Replace selection**; nothing changes before that.
+
+```bash
+curl -s localhost:8000/templates/$TPL/content | python -m json.tool          # blocks for the editor
+curl -s -X PUT localhost:8000/templates/$TPL/content -H 'Content-Type: application/json' \
+  -d '{"blocks": [...]}'                                                       # save as the DOCX
+curl -s -X POST localhost:8000/templates/rewrite -H 'Content-Type: application/json' \
+  -d '{"text": "We agree.", "instruction": "Make it more formal"}'
+```
+
+Saving rebuilds the **body** of the Word file from the editor's blocks. The styles, headers,
+footers and page setup of the existing file are kept; direct formatting (fonts, colours,
+alignment), images, merged cells and hyperlinks are not, and the editor lists what the current
+file would lose before you save. A document over 1500 blocks is refused instead of being cut.
+The rewrite uses the same local model as the extraction; the answer must contain exactly the
+`{{placeholders}}` of the original passage (one retry, then an error), so a rewrite cannot
+silently break the template.
+
 ## Frontend (review screen)
 
 A Next.js app (TypeScript, Tailwind) on top of the API: upload documents, define templates, run

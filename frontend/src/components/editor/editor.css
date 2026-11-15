@@ -1,0 +1,145 @@
+/* Template editor. The desk and the paper are the one memorable thing here: a sheet of
+   paper on a cool grey desk, set in a text serif like a contract. Everything around the
+   paper stays in the quiet UI sans. */
+
+.te {
+  --ink: #1a2033;
+  --ink-soft: #5b6478;
+  --desk: #e6e9f0;
+  --rule: #d8dce6;
+  --accent: #2a3dc7;
+  --accent-soft: rgba(42, 61, 199, 0.14);
+  --ph-ink: #0b5f57;
+  --ph-bg: #e3f2ef;
+  --ph-rule: #b4d9d2;
+  --bad-ink: #9f1d2c;
+  --bad-bg: #fbe8ea;
+  --bad-rule: #efb8bf;
+  --serif: Charter, "Iowan Old Style", "Source Serif Pro", "Palatino Linotype", Georgia, serif;
+}
+
+.te-paper {
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.7;
+  color: #1c1f2a;
+  box-shadow:
+    0 0 0 1px rgba(26, 32, 51, 0.06),
+    0 18px 40px -18px rgba(26, 32, 51, 0.28);
+}
+
+.te-paper .ProseMirror {
+  min-height: 960px;
+  outline: none;
+  caret-color: var(--accent);
+}
+
+.te-paper .ProseMirror > * + * {
+  margin-top: 0.7em;
+}
+
+.te-paper .ProseMirror h1,
+.te-paper .ProseMirror h2,
+.te-paper .ProseMirror h3,
+.te-paper .ProseMirror h4 {
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  margin-top: 1.4em;
+}
+.te-paper .ProseMirror h1 { font-size: 1.75em; }
+.te-paper .ProseMirror h2 { font-size: 1.4em; }
+.te-paper .ProseMirror h3 { font-size: 1.15em; }
+.te-paper .ProseMirror h4 { font-size: 1em; }
+
+.te-paper .ProseMirror .doc-title {
+  font-size: 2.1em;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.4em;
+}
+
+.te-paper .ProseMirror ul {
+  list-style: disc;
+  padding-left: 1.5em;
+}
+.te-paper .ProseMirror li > p + p {
+  margin-top: 0.3em;
+}
+
+.te-paper .ProseMirror table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+.te-paper .ProseMirror td {
+  position: relative;
+  border: 1px solid #c4c9d6;
+  padding: 0.45em 0.75em;
+  vertical-align: top;
+  line-height: 1.5;
+}
+.te-paper .ProseMirror td > * + * {
+  margin-top: 0.4em;
+}
+.te-paper .ProseMirror .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent-soft);
+  pointer-events: none;
+}
+
+/* {{placeholder}}: a unit, drawn like a tag. */
+.te-paper .ph {
+  display: inline-block;
+  padding: 0 0.45em;
+  border: 1px solid var(--ph-rule);
+  border-radius: 5px;
+  background: var(--ph-bg);
+  color: var(--ph-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78em;
+  line-height: 1.55;
+  vertical-align: 0.06em;
+  white-space: nowrap;
+  cursor: default;
+}
+.te-paper .ph::before { content: "{{"; opacity: 0.55; }
+.te-paper .ph::after { content: "}}"; opacity: 0.55; }
+.te-paper .ph.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.te-paper .ai-target {
+  background: var(--accent-soft);
+  border-radius: 2px;
+}
+
+.te-paper ::selection {
+  background: var(--accent-soft);
+}
+
+/* Floating panel entrance: a response to the person's action (selecting text), so it moves. */
+@keyframes te-pop {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.te-pop { animation: te-pop 140ms ease-out; }
+
+@keyframes te-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.te-shimmer {
+  background: linear-gradient(90deg, #eceef5 25%, #f7f8fc 45%, #eceef5 65%);
+  background-size: 200% 100%;
+  animation: te-shimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .te-pop, .te-shimmer { animation: none; }
+}

@@ -42,13 +42,13 @@ class AzureBlobStorage:
             else:
                 return
 
-    async def put(self, key: str, data: bytes, content_type: str) -> None:
-        # overwrite=False: keys are unique UUIDs, so an existing blob means a bug.
-        # We want a loud error there, not a silent overwrite of someone's file.
+    async def put(self, key: str, data: bytes, content_type: str, overwrite: bool = False) -> None:
+        # By default an existing blob is an error: keys are unique UUIDs, so a clash means a
+        # bug, and we want a loud failure there, not a silent overwrite of someone's file.
         await self._container.upload_blob(
             name=key,
             data=data,
-            overwrite=False,
+            overwrite=overwrite,
             content_settings=ContentSettings(content_type=content_type),
         )
 

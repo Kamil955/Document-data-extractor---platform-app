@@ -138,3 +138,10 @@ export interface TemplatePreview {
   unused_fields: string[];
   truncated: boolean;
 }
+
+// The whole document for the editor (never cut short, unlike the preview).
+export interface TemplateContent {
+  blocks: (PreviewParagraph | PreviewTable)[];
+  // What saving would not keep (images, merged cells, ...).
+  notes: string[];
+}
