@@ -194,6 +194,32 @@ class TemplatePreview(BaseModel):
     truncated: bool
 
 
+class TemplateContent(BaseModel):
+    """The whole document of a template as the editor works on it (no truncation)."""
+
+    blocks: list[PreviewParagraph | PreviewTable]
+    # Things in the file that the editor cannot keep (images, merged cells, ...): shown to
+    # the person before they save, because saving rebuilds the body of the document.
+    notes: list[str]
+
+
+class ContentUpdate(BaseModel):
+    blocks: list[PreviewParagraph | PreviewTable] = Field(max_length=2000)
+
+
+class RewriteRequest(BaseModel):
+    """Rewrite a passage of a template document following a free-form instruction."""
+
+    text: str = Field(min_length=1, max_length=4000)
+    instruction: str = Field(min_length=1, max_length=500)
+    # The text around the passage, so that the result fits in. Optional.
+    context: str | None = Field(default=None, max_length=3000)
+
+
+class RewriteResponse(BaseModel):
+    text: str
+
+
 class ExtractRequest(BaseModel):
     """Extract fields from one document: either a stored template or an inline field list."""
 

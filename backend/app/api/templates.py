@@ -9,13 +9,23 @@ from fastapi import APIRouter, Form, HTTPException, Response, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import SessionDep, SettingsDep, StorageDep
+from app.api.deps import LLMDep, SessionDep, SettingsDep, StorageDep
 from app.api.documents import clean_filename, detect_content_type
 from app.core.content_types import DOCX_MIME
 from app.filling.docx import DocxFillError, find_placeholders
-from app.filling.template_docx import preview_docx, starter_docx
+from app.filling.template_docx import build_docx, preview_docx, read_content, starter_docx
+from app.llm.base import LLMError, LLMUnavailableError
+from app.llm.rewrite import rewrite_passage
 from app.models import FieldType, Template, TemplateField
-from app.schemas import TemplateCreate, TemplateOut, TemplatePreview
+from app.schemas import (
+    ContentUpdate,
+    RewriteRequest,
+    RewriteResponse,
+    TemplateContent,
+    TemplateCreate,
+    TemplateOut,
+    TemplatePreview,
+)
 from app.storage.base import BlobNotFoundError, BlobStorage
 
 logger = logging.getLogger(__name__)
@@ -71,7 +81,8 @@ async def _attach_docx(
 ) -> None:
     """Store a DOCX for a template. Same order as for documents: the file first, then the row."""
     key = _docx_key(template.id)
-    await storage.put(key, data, DOCX_MIME)
+    # A template's document is replaced on purpose (upload, editor save): overwrite.
+    await storage.put(key, data, DOCX_MIME, overwrite=True)
     template.docx_key = key
     template.docx_filename = clean_filename(filename)
     await session.commit()
@@ -221,6 +232,52 @@ async def preview_template(
         return await asyncio.to_thread(preview_docx, data, [f.key for f in template.fields])
     except DocxFillError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/{template_id}/content", response_model=TemplateContent)
+async def get_template_content(
+    template_id: uuid.UUID, session: SessionDep, storage: StorageDep
+) -> TemplateContent:
+    """The whole document for the editor. Unlike the preview, it is never cut short."""
+    template = await _template(session, template_id)
+    data = await _stored_docx(template, storage)
+    try:
+        return await asyncio.to_thread(read_content, data)
+    except DocxFillError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put("/{template_id}/content", response_model=TemplateOut)
+async def put_template_content(
+    template_id: uuid.UUID, body: ContentUpdate, session: SessionDep, storage: StorageDep
+) -> Template:
+    """Save what the editor sends as the body of the template's document.
+
+    The styles, headers and page setup of the current file are kept; a template without a
+    document gets a new one.
+    """
+    template = await _template(session, template_id)
+    base = await _stored_docx(template, storage) if template.docx_key else None
+    try:
+        data = await asyncio.to_thread(build_docx, body.blocks, base)
+    except DocxFillError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await _attach_docx(
+        session, storage, template, data, template.docx_filename or f"{template.name}.docx"
+    )
+    return template
+
+
+@router.post("/rewrite", response_model=RewriteResponse)
+async def rewrite(body: RewriteRequest, llm: LLMDep) -> RewriteResponse:
+    """Rewrite a passage following the person's instruction ("make it more formal")."""
+    try:
+        text = await rewrite_passage(llm, body.text, body.instruction, body.context)
+    except LLMUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except LLMError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return RewriteResponse(text=text)
 
 
 @router.delete("/{template_id}", status_code=204)

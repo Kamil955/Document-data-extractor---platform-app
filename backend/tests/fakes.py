@@ -7,7 +7,11 @@ class InMemoryStorage:
     def __init__(self) -> None:
         self.blobs: dict[str, tuple[bytes, str]] = {}
 
-    async def put(self, key: str, data: bytes, content_type: str) -> None:
+    async def put(self, key: str, data: bytes, content_type: str, overwrite: bool = False) -> None:
+        # Strict like Azure: silently replacing a blob here would hide a bug that Azure
+        # reports as an error (this is how a failing "save" once got through the tests).
+        if key in self.blobs and not overwrite:
+            raise FileExistsError(key)
         self.blobs[key] = (data, content_type)
 
     async def get(self, key: str) -> bytes:

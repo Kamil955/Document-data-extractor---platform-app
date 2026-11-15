@@ -2,6 +2,7 @@ import uuid
 from collections.abc import AsyncIterator
 
 import pytest
+from azure.core.exceptions import ResourceExistsError
 
 from app.core.config import get_settings
 from app.storage.azure_blob import AzureBlobStorage
@@ -26,6 +27,16 @@ async def blob_storage() -> AsyncIterator[AzureBlobStorage]:
 async def test_put_get_roundtrip(blob_storage: AzureBlobStorage) -> None:
     await blob_storage.put("documents/a", b"hello", "application/pdf")
     assert await blob_storage.get("documents/a") == b"hello"
+
+
+async def test_put_refuses_to_replace_unless_asked(blob_storage: AzureBlobStorage) -> None:
+    await blob_storage.put("templates/a.docx", b"one", "application/pdf")
+
+    with pytest.raises(ResourceExistsError):
+        await blob_storage.put("templates/a.docx", b"two", "application/pdf")
+    await blob_storage.put("templates/a.docx", b"two", "application/pdf", overwrite=True)
+
+    assert await blob_storage.get("templates/a.docx") == b"two"
 
 
 async def test_get_missing_blob_raises(blob_storage: AzureBlobStorage) -> None:
