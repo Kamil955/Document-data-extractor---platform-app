@@ -1,6 +1,7 @@
 import type {
   DocumentItem,
   Extraction,
+  ExtractionSummary,
   FieldResult,
   FillReport,
   NewTemplate,
@@ -75,11 +76,15 @@ export const api = {
     await request(`/templates/${id}`, { method: "DELETE" });
   },
 
-  // Takes tens of seconds (one model call per field), so callers must show progress.
+  // Answers at once (202) with a "pending" extraction; the worker fills it in, so callers
+  // poll getExtraction until its status is "completed" or "failed".
   extract: (documentId: string, templateId: string) =>
     json<Extraction>(`/documents/${documentId}/extract`, jsonBody("POST", { template_id: templateId })),
 
   getExtraction: (id: string) => json<Extraction>(`/extractions/${id}`),
+
+  listExtractions: (documentId: string) =>
+    json<ExtractionSummary[]>(`/documents/${documentId}/extractions`),
 
   correctValue: (extractionId: string, key: string, value: string) =>
     json<FieldResult>(`/extractions/${extractionId}/values/${key}`, jsonBody("PATCH", { value })),

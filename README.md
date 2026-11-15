@@ -106,14 +106,25 @@ on any document.
 curl -s -X POST localhost:8000/templates -H 'Content-Type: application/json' \
   -d @backend/examples/template_contract_basics.json | python -m json.tool
 
-# extract its fields from an indexed document (a few seconds per field)
+# start extracting its fields from an indexed document: the answer is 202 at once, with the
+# id of the extraction (the worker needs a few seconds per field)
 curl -s -X POST localhost:8000/documents/$DOC/extract -H 'Content-Type: application/json' \
   -d "{\"template_id\": \"$TEMPLATE\"}" | python -m json.tool
 
 # or without a stored template: send the fields inline
 curl -s -X POST localhost:8000/documents/$DOC/extract -H 'Content-Type: application/json' \
   -d '{"fields": [{"key": "law", "label": "Governing law"}]}' | python -m json.tool
+
+# poll the extraction: status is pending, running, completed or failed, and `results` grows
+# by one field at a time (`total` is the number of fields)
+curl -s localhost:8000/extractions/$EXTRACTION | python -m json.tool
 ```
+
+The worker (the same process that indexes documents) runs the extractions one at a time, after
+indexing. If Ollama is down the extraction stays `pending` and continues when it is back; fields
+that are already done are kept, also when the worker itself dies. A person can correct values and
+fill a Word file once the status is `completed` (or `failed`); before that the API answers 409.
+`GET /documents/{id}/extractions` lists the extractions of a document.
 
 Every value has `citations` with a quote that was checked against the document text.
 `supported: false` with `found: true` means the model could not back the value with a real
@@ -141,6 +152,7 @@ from it:
 ```bash
 EXTRACTION=$(curl -s -X POST localhost:8000/documents/$DOC/extract -H 'Content-Type: application/json' \
   -d "{\"template_id\": \"$TPL\"}" | python -c 'import json,sys; print(json.load(sys.stdin)["extraction_id"])')
+# wait until `status` is "completed" (see above) before filling
 
 curl -s -D - -o filled.docx -X POST localhost:8000/extractions/$EXTRACTION/fill \
   -F "file=@backend/examples/contract_summary_template.docx"

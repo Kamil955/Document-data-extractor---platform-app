@@ -2,17 +2,57 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_llm
+from app.core.config import Settings
+from app.jobs.extraction import run_extraction_once
+from app.jobs.result import RunResult
 from app.llm.base import LLMError
-from app.main import app
-from app.models import DocumentStatus
-from tests.fakes import FakeEmbedder, FakeLLM, UnavailableLLM
+from app.models import DocumentStatus, Extraction, ExtractionStatus
+from tests.fakes import FakeEmbedder, FakeLLM
 from tests.test_ask import TEXTS, add_document, excerpt_number
 from tests.test_templates import NDA
 
 pytestmark = pytest.mark.integration  # needs Postgres with pgvector
+
+SETTINGS = Settings()
+
+
+async def run_worker(
+    db_session: AsyncSession, embedder: FakeEmbedder, llm: FakeLLM, keep: list[str]
+) -> None:
+    """Run the extraction jobs the way the worker does, until the queue is empty.
+
+    The worker takes ANY waiting job, so rows left in a developer's database would be picked
+    up instead of the test's own. Other unfinished rows are removed first (the DELETE is rolled
+    back with the rest of the test's transaction).
+    """
+    await db_session.execute(
+        delete(Extraction).where(
+            Extraction.id.not_in([uuid.UUID(k) for k in keep]),
+            Extraction.status.in_([ExtractionStatus.PENDING, ExtractionStatus.RUNNING]),
+        )
+    )
+    for _ in range(20):  # a bound, so a bug cannot make a test loop forever
+        if await run_extraction_once(db_session, embedder, llm, SETTINGS) is RunResult.IDLE:
+            return
+
+
+async def extract_now(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    embedder: FakeEmbedder,
+    llm: FakeLLM,
+    document_id: uuid.UUID,
+    body: dict,
+) -> dict:
+    """Start an extraction, let the worker finish it and return the stored result."""
+    started = await client.post(f"/documents/{document_id}/extract", json=body)
+    assert started.status_code == 202
+    extraction_id = started.json()["extraction_id"]
+    await run_worker(db_session, embedder, llm, [extraction_id])
+    return (await client.get(f"/extractions/{extraction_id}")).json()
 
 
 def reply_by_field(prompt: str) -> dict:
@@ -41,12 +81,11 @@ async def test_extract_with_a_stored_template(
     template_id = (await client.post("/templates", json=NDA)).json()["id"]
     llm.response = reply_by_field
 
-    response = await client.post(
-        f"/documents/{document.id}/extract", json={"template_id": template_id}
+    body = await extract_now(
+        client, db_session, embedder, llm, document.id, {"template_id": template_id}
     )
 
-    assert response.status_code == 200
-    body = response.json()
+    assert body["status"] == "completed" and body["total"] == 3
     assert body["template_id"] == template_id and body["model"] == "fake-llm"
     by_key = {r["key"]: r for r in body["results"]}
     assert list(by_key) == ["term", "notice_days", "governing_law"]  # template order kept
@@ -67,9 +106,13 @@ async def test_prompt_describes_the_field_and_its_type(
 ) -> None:
     document = await add_document(db_session, embedder)
 
-    await client.post(
-        f"/documents/{document.id}/extract",
-        json={
+    await extract_now(
+        client,
+        db_session,
+        embedder,
+        llm,
+        document.id,
+        {
             "fields": [
                 {
                     "key": "notice",
@@ -93,9 +136,13 @@ async def test_each_field_is_searched_by_its_own_short_query(
     # equals the search query. Using the long instruction as the query would never match.
     document = await add_document(db_session, embedder)
 
-    await client.post(
-        f"/documents/{document.id}/extract",
-        json={"fields": [{"key": "law", "label": TEXTS[2]}]},
+    await extract_now(
+        client,
+        db_session,
+        embedder,
+        llm,
+        document.id,
+        {"fields": [{"key": "law", "label": TEXTS[2]}]},
     )
 
     _, user_prompt, _ = llm.calls[0]
@@ -142,9 +189,13 @@ async def test_one_unusable_reply_does_not_lose_the_other_fields(
 
     llm.response = respond
 
-    response = await client.post(
-        f"/documents/{document.id}/extract",
-        json={
+    body = await extract_now(
+        client,
+        db_session,
+        embedder,
+        llm,
+        document.id,
+        {
             "fields": [
                 {"key": "broken", "label": "Broken"},
                 {"key": "law", "label": "Governing law"},
@@ -152,22 +203,10 @@ async def test_one_unusable_reply_does_not_lose_the_other_fields(
         },
     )
 
-    results = {r["key"]: r for r in response.json()["results"]}
+    assert body["status"] == "completed"  # a bad reply is recorded on its field, not the job
+    results = {r["key"]: r for r in body["results"]}
     assert results["broken"]["error"] == "not JSON" and results["broken"]["found"] is False
     assert results["law"]["supported"] is True and results["law"]["error"] is None
-
-
-async def test_model_down_is_503(
-    client: AsyncClient, db_session: AsyncSession, embedder: FakeEmbedder
-) -> None:
-    document = await add_document(db_session, embedder)
-    app.dependency_overrides[get_llm] = lambda: UnavailableLLM()
-
-    response = await client.post(
-        f"/documents/{document.id}/extract", json={"fields": [{"key": "a", "label": "A"}]}
-    )
-
-    assert response.status_code == 503
 
 
 async def test_boolean_field_must_not_be_inferred_from_silence(
@@ -175,9 +214,13 @@ async def test_boolean_field_must_not_be_inferred_from_silence(
 ) -> None:
     document = await add_document(db_session, embedder)
 
-    await client.post(
-        f"/documents/{document.id}/extract",
-        json={"fields": [{"key": "nc", "label": "Non-compete", "type": "boolean"}]},
+    await extract_now(
+        client,
+        db_session,
+        embedder,
+        llm,
+        document.id,
+        {"fields": [{"key": "nc", "label": "Non-compete", "type": "boolean"}]},
     )
 
     _, user_prompt, _ = llm.calls[0]
@@ -189,8 +232,13 @@ async def test_each_field_costs_exactly_one_model_call(
 ) -> None:
     document = await add_document(db_session, embedder)
 
-    await client.post(
-        f"/documents/{document.id}/extract", json={"fields": [{"key": "x", "label": "Anything"}]}
+    await extract_now(
+        client,
+        db_session,
+        embedder,
+        llm,
+        document.id,
+        {"fields": [{"key": "x", "label": "Anything"}]},
     )
 
     assert len(llm.calls) == 1
@@ -213,8 +261,8 @@ async def test_a_negative_boolean_is_never_marked_verified(
     ]
 
     results = (
-        await client.post(f"/documents/{document.id}/extract", json={"fields": fields})
-    ).json()["results"]
+        await extract_now(client, db_session, embedder, llm, document.id, {"fields": fields})
+    )["results"]
 
     by_key = {r["key"]: r for r in results}
     # The quote is real, but a quote cannot prove that a clause does not exist.

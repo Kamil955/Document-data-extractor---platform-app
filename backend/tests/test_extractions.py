@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.content_types import DOCX_MIME
 from tests.fakes import FakeEmbedder, FakeLLM
 from tests.test_ask import add_document
-from tests.test_extract import reply_by_field
+from tests.test_extract import extract_now, reply_by_field
 from tests.test_templates import NDA
 
 pytestmark = pytest.mark.integration  # needs Postgres with pgvector
@@ -28,11 +28,9 @@ async def extract(client: AsyncClient, db_session, embedder, llm: FakeLLM) -> di
     document = await add_document(db_session, embedder)
     template_id = (await client.post("/templates", json=NDA)).json()["id"]
     llm.response = reply_by_field
-    response = await client.post(
-        f"/documents/{document.id}/extract", json={"template_id": template_id}
+    return await extract_now(
+        client, db_session, embedder, llm, document.id, {"template_id": template_id}
     )
-    assert response.status_code == 200
-    return response.json()
 
 
 async def test_extraction_is_saved_and_can_be_read_again(

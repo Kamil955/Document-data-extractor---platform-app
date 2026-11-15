@@ -8,7 +8,7 @@ import { type FieldState, fieldState } from "@/lib/field-state";
 import type { Extraction, FieldResult } from "@/lib/types";
 import { FieldCard } from "./field-card";
 import { FillPanel } from "./fill-panel";
-import { ErrorBox, PageHeader, Spinner } from "./ui";
+import { ErrorBox, PageHeader, ProgressBar, Spinner } from "./ui";
 
 type Filter = "all" | "review" | "missing";
 
@@ -30,6 +30,20 @@ export function ExtractionView() {
       .then(setExtraction)
       .catch((e) => setError(e instanceof ApiError ? e.message : "Unexpected error"));
   }, [id]);
+
+  // While the worker is busy, ask again every 2 seconds; finished fields show up one by one.
+  // The effect re-runs when `working` flips to false, and then clears the timer.
+  const working = extraction?.status === "pending" || extraction?.status === "running";
+  useEffect(() => {
+    if (!working) return;
+    const timer = setInterval(() => {
+      api
+        .getExtraction(id)
+        .then(setExtraction)
+        .catch((e) => setError(e instanceof ApiError ? e.message : "Unexpected error"));
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [working, id]);
 
   function replace(saved: FieldResult) {
     setExtraction((current) =>
@@ -55,8 +69,31 @@ export function ExtractionView() {
         </Link>
       </PageHeader>
 
+      {working && (
+        <div className="mb-5 rounded-lg bg-white p-4 shadow-sm ring-1 ring-zinc-200">
+          <p className="mb-2 text-sm text-zinc-700">
+            {extraction.status === "pending"
+              ? "Waiting for the worker to start…"
+              : `Reading the document: ${extraction.results.length} of ${extraction.total} fields done.`}
+          </p>
+          <ProgressBar done={extraction.results.length} total={extraction.total} />
+          <p className="mt-2 text-xs text-zinc-500">
+            You can leave this page: the extraction continues and is listed on the document.
+          </p>
+        </div>
+      )}
+
+      {extraction.status === "failed" && (
+        <div className="mb-5">
+          <ErrorBox>
+            The extraction failed after {extraction.results.length} of {extraction.total} fields:{" "}
+            {extraction.error ?? "unknown error"}
+          </ErrorBox>
+        </div>
+      )}
+
       <p className="mb-4 text-sm text-zinc-600">
-        {count((s) => s === "verified" || s === "edited")} of {states.length} fields are verified or confirmed.
+        {count((s) => s === "verified" || s === "edited")} of {extraction.total} fields are verified or confirmed.
         {count((s) => s === "check" || s === "error") > 0 && (
           <strong className="ml-1 text-amber-800">{count((s) => s === "check" || s === "error")} need your check.</strong>
         )}
@@ -84,11 +121,11 @@ export function ExtractionView() {
           .filter((field) => active.match(fieldState(field)))
           // key includes the saved value, so a card restarts its draft when the saved value changes.
           .map((field) => (
-            <FieldCard key={`${field.key}:${field.value}:${field.edited}`} extractionId={extraction.extraction_id} field={field} onSaved={replace} />
+            <FieldCard key={`${field.key}:${field.value}:${field.edited}`} extractionId={extraction.extraction_id} field={field} onSaved={replace} locked={working} />
           ))}
       </ul>
 
-      <FillPanel extractionId={extraction.extraction_id} />
+      {!working && <FillPanel extractionId={extraction.extraction_id} />}
     </>
   );
 }

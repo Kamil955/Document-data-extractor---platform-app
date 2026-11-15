@@ -59,12 +59,31 @@ export interface FieldResult {
   edited: boolean;
 }
 
+// pending = waiting for the worker, running = the worker is going through the fields.
+export type ExtractionStatus = "pending" | "running" | "completed" | "failed";
+
 export interface Extraction {
   extraction_id: string;
   document_id: string;
   template_id: string | null;
   model: string;
+  status: ExtractionStatus;
+  // Number of fields in the extraction. `results` holds the finished ones only, so
+  // results.length / total is the progress while the worker is busy.
+  total: number;
   results: FieldResult[];
+  error: string | null;
+}
+
+export interface ExtractionSummary {
+  extraction_id: string;
+  template_id: string | null;
+  template_name: string | null;
+  model: string;
+  status: ExtractionStatus;
+  total: number;
+  done: number;
+  created_at: string;
 }
 
 export interface FillReport {

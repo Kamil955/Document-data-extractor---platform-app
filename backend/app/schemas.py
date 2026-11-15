@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.models import DocumentStatus, FieldType
+from app.models import DocumentStatus, ExtractionStatus, FieldType
 
 
 class DocumentOut(BaseModel):
@@ -198,7 +198,26 @@ class ExtractResponse(BaseModel):
     document_id: uuid.UUID
     template_id: uuid.UUID | None
     model: str
+    status: ExtractionStatus
+    # How many fields the extraction has; `results` holds the finished ones, so a screen can
+    # show "results / total" while the worker is still busy.
+    total: int
     results: list[FieldResultOut]
+    # Why the extraction failed. None unless status is "failed".
+    error: str | None = None
+
+
+class ExtractionSummary(BaseModel):
+    """One line of a document's list of extractions."""
+
+    extraction_id: uuid.UUID
+    template_id: uuid.UUID | None
+    template_name: str | None
+    model: str
+    status: ExtractionStatus
+    total: int
+    done: int
+    created_at: datetime
 
 
 class ValueUpdate(BaseModel):
