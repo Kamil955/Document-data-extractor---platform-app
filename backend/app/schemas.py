@@ -150,8 +150,48 @@ class TemplateOut(BaseModel):
     id: uuid.UUID
     name: str
     description: str | None
+    # Name of the Word document attached to the template, or None when it has none.
+    docx_filename: str | None
     created_at: datetime
     fields: list[FieldOut]
+
+
+class PreviewSegment(BaseModel):
+    """A piece of a paragraph: plain text, or a {{placeholder}} (then `key` is set)."""
+
+    text: str
+    key: str | None = None
+    bold: bool = False
+    italic: bool = False
+    underline: bool = False
+
+
+class PreviewParagraph(BaseModel):
+    type: Literal["paragraph"] = "paragraph"
+    style: Literal["normal", "title", "heading", "list"] = "normal"
+    level: int = 1  # heading level (1-9); meaningless for other styles
+    segments: list[PreviewSegment]
+
+
+class PreviewTable(BaseModel):
+    type: Literal["table"] = "table"
+    # rows -> cells -> paragraphs (a table nested in a cell is flattened into its paragraphs)
+    rows: list[list[list[PreviewParagraph]]]
+
+
+class PlaceholderInfo(BaseModel):
+    key: str
+    known: bool  # False: no field of the template has this key, so nothing will fill it
+
+
+class TemplatePreview(BaseModel):
+    blocks: list[PreviewParagraph | PreviewTable]
+    # Every {{placeholder}} of the document (body, tables, headers, footers), in order.
+    placeholders: list[PlaceholderInfo]
+    # Fields of the template that the document never uses.
+    unused_fields: list[str]
+    # True when the document was cut short to keep the response small.
+    truncated: bool
 
 
 class ExtractRequest(BaseModel):

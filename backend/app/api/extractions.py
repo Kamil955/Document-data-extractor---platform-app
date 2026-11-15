@@ -4,12 +4,13 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Response, UploadFile
 
-from app.api.deps import SessionDep, SettingsDep
+from app.api.deps import SessionDep, SettingsDep, StorageDep
 from app.api.documents import clean_filename, detect_content_type
 from app.core.content_types import DOCX_MIME
 from app.filling.docx import DocxFillError, FillValue, fill_docx
-from app.models import Extraction, ExtractionStatus
+from app.models import Extraction, ExtractionStatus, Template
 from app.schemas import ExtractResponse, FieldResultOut, ValueUpdate
+from app.storage.base import BlobNotFoundError
 
 router = APIRouter(prefix="/extractions", tags=["extractions"])
 
@@ -68,25 +69,48 @@ async def correct_value(
 
 @router.post("/{extraction_id}/fill")
 async def fill_template(
-    extraction_id: uuid.UUID, file: UploadFile, session: SessionDep, settings: SettingsDep
+    extraction_id: uuid.UUID,
+    session: SessionDep,
+    settings: SettingsDep,
+    storage: StorageDep,
+    file: UploadFile | None = None,
 ) -> Response:
     """Fill a Word file with the values of a saved extraction.
 
-    The file holds placeholders such as {{governing_law}} (the field keys). The response is
-    the filled DOCX; the counts are in the X-Fill-* headers. Values that were not found are
+    The file holds placeholders such as {{governing_law}} (the field keys). Send it, or send
+    nothing to use the document stored with the extraction's template. The response is the
+    filled DOCX; the counts are in the X-Fill-* headers. Values that were not found are
     marked in yellow in the document, values without a verified quote in turquoise.
     """
     extraction = await session.get(Extraction, extraction_id)
     if extraction is None:
         raise HTTPException(status_code=404, detail="extraction not found")
     _reject_while_running(extraction)
-    if file.size is not None and file.size > settings.max_upload_bytes:
-        raise HTTPException(status_code=413, detail="file too large")
-    data = await file.read()
-    if len(data) > settings.max_upload_bytes:
-        raise HTTPException(status_code=413, detail="file too large")
-    if detect_content_type(data) != DOCX_MIME:
-        raise HTTPException(status_code=415, detail="the template must be a DOCX file")
+    if file is not None:
+        if file.size is not None and file.size > settings.max_upload_bytes:
+            raise HTTPException(status_code=413, detail="file too large")
+        data = await file.read()
+        if len(data) > settings.max_upload_bytes:
+            raise HTTPException(status_code=413, detail="file too large")
+        if detect_content_type(data) != DOCX_MIME:
+            raise HTTPException(status_code=415, detail="the template must be a DOCX file")
+        source_name = clean_filename(file.filename)
+    else:
+        template = (
+            await session.get(Template, extraction.template_id) if extraction.template_id else None
+        )
+        if template is None or template.docx_key is None:
+            raise HTTPException(
+                status_code=400,
+                detail="send a .docx file: this extraction's template has no document",
+            )
+        try:
+            data = await storage.get(template.docx_key)
+        except BlobNotFoundError:
+            raise HTTPException(
+                status_code=404, detail="the template document is missing"
+            ) from None
+        source_name = template.docx_filename or "template.docx"
 
     values: dict[str, FillValue] = {}
     for item in extraction.results:
@@ -104,7 +128,7 @@ async def fill_template(
     except DocxFillError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    disposition = f"attachment; filename*=UTF-8''{quote('filled-' + clean_filename(file.filename))}"
+    disposition = f"attachment; filename*=UTF-8''{quote('filled-' + source_name)}"
     return Response(
         content=filled,
         media_type=DOCX_MIME,

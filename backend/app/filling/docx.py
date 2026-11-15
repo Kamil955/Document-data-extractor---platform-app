@@ -103,10 +103,12 @@ def _all_paragraphs(document) -> Iterator[Paragraph]:
 
 
 def _paragraphs_of(container) -> Iterator[Paragraph]:
-    """Paragraphs of a body, header or cell, including tables nested in it."""
-    yield from container.paragraphs
-    for table in container.tables:
-        yield from _paragraphs_of_table(table)
+    """Paragraphs of a body, header or cell, including tables nested in it, in reading order."""
+    for block in container.iter_inner_content():
+        if isinstance(block, Table):
+            yield from _paragraphs_of_table(block)
+        else:
+            yield block
 
 
 def _paragraphs_of_table(table: Table) -> Iterator[Paragraph]:

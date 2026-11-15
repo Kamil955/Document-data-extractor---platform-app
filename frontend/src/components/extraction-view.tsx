@@ -128,7 +128,7 @@ export function ExtractionView() {
           ))}
       </ul>
 
-      {!working && <FillPanel extractionId={extraction.extraction_id} />}
+      {!working && <FillPanel extractionId={extraction.extraction_id} templateId={extraction.template_id} />}
 
       <SourceViewer citation={source} onClose={() => setSource(null)} />
     </>

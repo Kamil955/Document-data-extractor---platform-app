@@ -7,6 +7,7 @@ import type {
   FillReport,
   NewTemplate,
   Template,
+  TemplatePreview,
 } from "./types";
 
 // Public on purpose: the browser calls the API directly (the backend allows this origin
@@ -80,6 +81,32 @@ export const api = {
 
   createTemplate: (template: NewTemplate) => json<Template>("/templates", jsonBody("POST", template)),
 
+  getTemplate: (id: string) => json<Template>(`/templates/${id}`),
+
+  // Builds a template from a Word file: its {{placeholders}} become the fields.
+  createTemplateFromDocx(file: File, name: string | null) {
+    const form = new FormData();
+    form.append("file", file);
+    if (name) form.append("name", name);
+    return json<Template>("/templates/from-docx", { method: "POST", body: form });
+  },
+
+  // Attaches the Word document to a template, or replaces the current one.
+  putTemplateDocx(id: string, file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    return json<Template>(`/templates/${id}/docx`, { method: "PUT", body: form });
+  },
+
+  // Creates a starter document (title + a Field/Value table) from the template's fields.
+  generateTemplateDocx: (id: string) => json<Template>(`/templates/${id}/docx/generate`, { method: "POST" }),
+
+  async downloadTemplateDocx(id: string): Promise<Blob> {
+    return (await request(`/templates/${id}/docx`)).blob();
+  },
+
+  getTemplatePreview: (id: string) => json<TemplatePreview>(`/templates/${id}/preview`),
+
   async deleteTemplate(id: string) {
     await request(`/templates/${id}`, { method: "DELETE" });
   },
@@ -99,10 +126,11 @@ export const api = {
 
   async fillTemplate(
     extractionId: string,
-    file: File,
+    // Omitted: the backend fills the Word document stored with the extraction's template.
+    file?: File,
   ): Promise<{ blob: Blob; filename: string; report: FillReport }> {
     const form = new FormData();
-    form.append("file", file);
+    if (file) form.append("file", file);
     const response = await request(`/extractions/${extractionId}/fill`, {
       method: "POST",
       body: form,

@@ -163,6 +163,35 @@ The `X-Fill-*` response headers list the placeholders that were filled, not foun
 are marked yellow and unverified values turquoise. Placeholders are found even when Word splits
 them over several runs; text boxes, footnotes and hyperlinks are not covered yet.
 
+## Template documents
+
+A template can keep its own Word document, so filling needs no upload each time:
+
+```bash
+# create a template straight from a Word file: every {{placeholder}} becomes a field
+curl -s -X POST localhost:8000/templates/from-docx \
+  -F "file=@backend/examples/agreement_summary_card.docx" | python -m json.tool
+
+# or attach / replace the document of an existing template
+curl -s -X PUT localhost:8000/templates/$TPL/docx -F "file=@my-template.docx"
+# or generate a starter document from the fields (title + Field/Value table)
+curl -s -X POST localhost:8000/templates/$TPL/docx/generate
+
+curl -s localhost:8000/templates/$TPL/preview | python -m json.tool   # structured preview
+curl -s -o template.docx localhost:8000/templates/$TPL/docx           # download
+
+# fill from the template's own document: no file in the request
+curl -s -D - -o filled.docx -X POST localhost:8000/extractions/$EXTRACTION/fill
+```
+
+The preview is structured JSON (paragraphs, tables, `{{placeholders}}` marked as known or
+unknown, template fields the document never uses), never HTML, so the frontend renders it as
+plain text. Headers, footers, images and text boxes are not shown in the preview.
+`backend/examples/agreement_summary_card.docx` matches `template_contract_basics.json`; rebuild
+it with `uv run python examples/build_example_templates.py`. In the frontend, the **Templates**
+page creates a template from a Word file and its page shows the document with the placeholders
+highlighted (green = a field fills it, red = no such field).
+
 ## Frontend (review screen)
 
 A Next.js app (TypeScript, Tailwind) on top of the API: upload documents, define templates, run

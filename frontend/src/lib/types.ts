@@ -36,6 +36,8 @@ export interface Template {
   description: string | null;
   created_at: string;
   fields: TemplateField[];
+  // Name of the template's own Word document, or null when it has none yet.
+  docx_filename: string | null;
 }
 
 export interface NewTemplate {
@@ -100,4 +102,39 @@ export interface FillReport {
   unverified: string[];
   missing: string[];
   unknown: string[];
+}
+
+// Preview of a template's Word document. The backend sends structured blocks (never HTML),
+// so the browser only renders text through React and nothing from the file can inject markup.
+export interface PreviewSegment {
+  text: string;
+  // Set when the segment is a {{placeholder}}.
+  key: string | null;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+}
+
+export interface PreviewParagraph {
+  type: "paragraph";
+  style: "normal" | "title" | "heading" | "list";
+  level: number;
+  segments: PreviewSegment[];
+}
+
+export interface PreviewTable {
+  type: "table";
+  rows: PreviewParagraph[][][];
+}
+
+export interface PlaceholderInfo {
+  key: string;
+  known: boolean;
+}
+
+export interface TemplatePreview {
+  blocks: (PreviewParagraph | PreviewTable)[];
+  placeholders: PlaceholderInfo[];
+  unused_fields: string[];
+  truncated: boolean;
 }
