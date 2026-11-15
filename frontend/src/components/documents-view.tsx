@@ -4,26 +4,38 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, api } from "@/lib/api";
 import type { DocumentItem, DocumentStatus } from "@/lib/types";
-import { Badge, ErrorBox, PageHeader, Spinner, buttonClass, secondaryButtonClass } from "./ui";
+import { formatDate } from "@/lib/format";
+import { Badge, EmptyState, ErrorBox, PageHeader, Spinner, type Tone, buttonClass, surfaceClass } from "./ui";
 
-const STATUS_STYLE: Record<DocumentStatus, string> = {
-  uploaded: "bg-zinc-100 text-zinc-600 ring-zinc-500/20",
-  processing: "bg-sky-50 text-sky-700 ring-sky-600/20",
-  indexed: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  failed: "bg-red-50 text-red-700 ring-red-600/20",
+const STATUS_TONE: Record<DocumentStatus, Tone> = {
+  uploaded: "neutral",
+  processing: "info",
+  indexed: "ok",
+  failed: "bad",
 };
 const STATUS_LABEL: Record<DocumentStatus, string> = {
   uploaded: "Queued",
-  processing: "Processing",
+  processing: "Reading",
   indexed: "Ready",
   failed: "Failed",
 };
+
+// PDF or DOCX, as a small chip in front of the file name.
+function FileChip({ name }: { name: string }) {
+  const kind = name.toLowerCase().endsWith(".docx") ? "DOCX" : "PDF";
+  return (
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-wash text-[10px] font-semibold tracking-wide text-ink-soft ring-1 ring-rule">
+      {kind}
+    </span>
+  );
+}
 
 export function DocumentsView() {
   const [documents, setDocuments] = useState<DocumentItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -77,44 +89,68 @@ export function DocumentsView() {
 
   return (
     <>
-      <PageHeader title="Documents">
+      <PageHeader title="Documents" description="Upload a contract. It is read and indexed in the background, then you can extract data from it." />
+
+      <input
+        ref={fileInput}
+        type="file"
+        accept=".pdf,.docx"
+        className="hidden"
+        onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0])}
+      />
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) void upload(file);
+        }}
+        className={`mb-8 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-dashed px-6 py-5 transition ${
+          dragging ? "border-accent bg-accent-wash" : "border-ink-faint/60 bg-white/60"
+        }`}
+      >
+        <div>
+          <p className="text-sm font-medium text-ink">Drop a PDF or DOCX here</p>
+          <p className="mt-0.5 text-sm text-ink-soft">or choose a file from your computer.</p>
+        </div>
         <div className="flex items-center gap-3">
           {uploading && <Spinner label="Uploading…" />}
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".pdf,.docx"
-            className="hidden"
-            onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0])}
-          />
           <button className={buttonClass} disabled={uploading} onClick={() => fileInput.current?.click()}>
-            Upload PDF or DOCX
+            Choose file
           </button>
         </div>
-      </PageHeader>
+      </div>
 
-      {error && <ErrorBox>{error}</ErrorBox>}
+      {error && (
+        <div className="mb-6">
+          <ErrorBox>{error}</ErrorBox>
+        </div>
+      )}
 
       {documents === null && !error && <Spinner label="Loading…" />}
       {documents?.length === 0 && (
-        <p className="rounded-lg border border-dashed border-zinc-300 p-10 text-center text-sm text-zinc-500">
-          No documents yet. Upload a contract to get started.
-        </p>
+        <EmptyState title="No documents yet">Upload your first contract above to get started.</EmptyState>
       )}
 
       {documents && documents.length > 0 && (
-        <ul className="divide-y divide-zinc-200 rounded-lg bg-white shadow-sm ring-1 ring-zinc-200">
+        <ul className={`divide-y divide-rule ${surfaceClass}`}>
           {documents.map((document) => (
-            <li key={document.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-zinc-900">{document.filename}</p>
-                <p className="mt-0.5 text-xs text-zinc-500">
-                  {new Date(document.created_at).toLocaleString()}
-                  {document.error && <span className="ml-2 text-red-600">{document.error}</span>}
+            <li key={document.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4">
+              <FileChip name={document.filename} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-ink">{document.filename}</p>
+                <p className="mt-0.5 truncate text-sm text-ink-soft">
+                  {formatDate(document.created_at)}
+                  {document.error && <span className="ml-2 text-bad">{document.error}</span>}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge className={STATUS_STYLE[document.status]}>{STATUS_LABEL[document.status]}</Badge>
+              <Badge tone={STATUS_TONE[document.status]}>{STATUS_LABEL[document.status]}</Badge>
+              <div className="flex items-center gap-1">
                 {document.status === "indexed" ? (
                   <Link href={`/documents/${document.id}`} className={buttonClass}>
                     Extract data
@@ -124,7 +160,10 @@ export function DocumentsView() {
                     Extract data
                   </button>
                 )}
-                <button className={secondaryButtonClass} onClick={() => void remove(document)}>
+                <button
+                  className="rounded-md px-3 py-2 text-sm text-ink-soft transition hover:bg-bad-wash hover:text-bad"
+                  onClick={() => void remove(document)}
+                >
                   Delete
                 </button>
               </div>

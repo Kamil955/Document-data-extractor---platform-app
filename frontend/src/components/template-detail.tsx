@@ -7,7 +7,7 @@ import { ApiError, api } from "@/lib/api";
 import { download } from "@/lib/download";
 import type { Template, TemplatePreview } from "@/lib/types";
 import { PlaceholderChips, TemplatePreviewView } from "./template-preview";
-import { ErrorBox, PageHeader, Spinner, buttonClass, secondaryButtonClass } from "./ui";
+import { ErrorBox, PageHeader, Spinner, buttonClass, secondaryButtonClass, surfaceClass } from "./ui";
 
 const message = (e: unknown, fallback: string) => (e instanceof ApiError ? e.message : fallback);
 
@@ -71,28 +71,22 @@ export function TemplateDetail() {
 
   return (
     <>
-      <Link href="/templates" className="text-sm text-zinc-500 hover:text-zinc-900">
-        ← Templates
-      </Link>
-      <div className="mt-2">
-        <PageHeader title={template.name} />
-      </div>
-      {template.description && <p className="-mt-3 mb-6 text-sm text-zinc-500">{template.description}</p>}
+      <PageHeader title={template.name} description={template.description ?? undefined} back={{ href: "/templates", label: "Templates" }} />
       {error && (
-        <div className="mb-4">
+        <div className="mb-6">
           <ErrorBox>{error}</ErrorBox>
         </div>
       )}
 
-      <section className="mb-8 rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-900">Fields</h2>
-        <ul className="divide-y divide-zinc-100 text-sm">
+      <section className="mb-10">
+        <h2 className="mb-3 text-sm font-semibold text-ink">Fields</h2>
+        <ul className={`divide-y divide-rule text-sm ${surfaceClass}`}>
           {template.fields.map((field) => (
-            <li key={field.key} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
-              <span className="font-medium text-zinc-900">{field.label}</span>
-              <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-700">{`{{${field.key}}}`}</code>
-              <span className="text-xs text-zinc-500">{field.type}</span>
-              {field.description && <span className="text-zinc-500">{field.description}</span>}
+            <li key={field.key} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-6 py-3.5">
+              <span className="w-44 shrink-0 font-medium text-ink">{field.label}</span>
+              <code className="rounded bg-wash px-1.5 py-0.5 font-mono text-xs text-ink-soft ring-1 ring-rule">{`{{${field.key}}}`}</code>
+              <span className="text-xs text-ink-faint">{field.type}</span>
+              {field.description && <span className="text-ink-soft">{field.description}</span>}
             </li>
           ))}
         </ul>
@@ -100,8 +94,8 @@ export function TemplateDetail() {
 
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-zinc-900">
-            Word document{template.docx_filename && <span className="ml-2 font-normal text-zinc-500">{template.docx_filename}</span>}
+          <h2 className="text-sm font-semibold text-ink">
+            Word document{template.docx_filename && <span className="ml-2 font-normal text-ink-soft">{template.docx_filename}</span>}
           </h2>
           <div className="flex flex-wrap items-center gap-2">
             <input
@@ -115,8 +109,11 @@ export function TemplateDetail() {
                 if (file) void act(() => api.putTemplateDocx(id, file), "Upload failed");
               }}
             />
+            <Link href={`/templates/${id}/edit`} className={buttonClass}>
+              {template.docx_filename ? "Edit document" : "Write the document"}
+            </Link>
             {!template.docx_filename && (
-              <button className={buttonClass} disabled={busy} onClick={() => void act(() => api.generateTemplateDocx(id), "Generating failed")}>
+              <button className={secondaryButtonClass} disabled={busy} onClick={() => void act(() => api.generateTemplateDocx(id), "Generating failed")}>
                 Generate a starter document
               </button>
             )}
@@ -133,9 +130,9 @@ export function TemplateDetail() {
         </div>
 
         {!template.docx_filename && (
-          <p className="rounded-md bg-zinc-50 p-4 text-sm text-zinc-600 ring-1 ring-zinc-200">
-            This template has no document yet. Generate a starter one from the fields (download it, style it in Word, upload it
-            back), or upload your own .docx with placeholders such as <code className="font-mono">{"{{governing_law}}"}</code>.
+          <p className={`px-6 py-5 text-sm leading-relaxed text-ink-soft ${surfaceClass}`}>
+            This template has no document yet. Write it in the editor here, generate a starter one from the fields, or upload your
+            own .docx with placeholders such as <code className="font-mono">{"{{governing_law}}"}</code>.
           </p>
         )}
 
@@ -144,15 +141,15 @@ export function TemplateDetail() {
             <div className="mb-3 space-y-2 text-sm">
               <PlaceholderChips placeholders={preview.placeholders} />
               {preview.placeholders.length === 0 && (
-                <p className="text-amber-800">The document has no {"{{placeholders}}"}, so filling would change nothing.</p>
+                <p className="text-warn">The document has no {"{{placeholders}}"}, so filling would change nothing.</p>
               )}
               {unknown.length > 0 && (
-                <p className="text-red-800">
+                <p className="text-bad">
                   No field has the key {unknown.map((p) => `“${p.key}”`).join(", ")}: these placeholders will stay as they are.
                 </p>
               )}
               {preview.unused_fields.length > 0 && (
-                <p className="text-amber-800">
+                <p className="text-warn">
                   Fields missing from the document: {preview.unused_fields.join(", ")}.
                 </p>
               )}

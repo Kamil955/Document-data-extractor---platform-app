@@ -81,6 +81,21 @@ services:
       - ./backend:/app
     command: python -m app.ingestion.worker
 
+  frontend:
+    # The web app, built as a production image (no hot reload: for development use
+    # `npm run dev` in ./frontend instead and leave this service stopped).
+    build:
+      context: ./frontend
+      args:
+        # The address the BROWSER uses to reach the API. The API runs with host networking,
+        # so it is on the host's port 8000. Change it for a deployment on another machine.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    # The page itself does not need the API to start; the browser calls the API directly.
+    depends_on:
+      - backend
+
 volumes:
   pgdata:
   floci-data:

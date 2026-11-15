@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { ApiError, api } from "@/lib/api";
 import type { DocumentItem, Template } from "@/lib/types";
 import { ExtractionsList } from "./extractions-list";
-import { ErrorBox, PageHeader, Spinner, buttonClass } from "./ui";
+import { ErrorBox, PageHeader, Spinner, buttonClass, inputClass, surfaceClass } from "./ui";
 
 export function ExtractView() {
   const { id } = useParams<{ id: string }>();
@@ -43,30 +43,34 @@ export function ExtractView() {
 
   return (
     <>
-      <PageHeader title="Extract data">
-        <Link href="/" className="text-sm text-zinc-600 hover:text-zinc-900">
-          ← Documents
-        </Link>
-      </PageHeader>
-      {error && <ErrorBox>{error}</ErrorBox>}
+      <PageHeader
+        title="Extract data"
+        description="Choose a template and start. The work runs in the background, so you can leave this page."
+        back={{ href: "/", label: "Documents" }}
+      />
+      {error && (
+        <div className="mb-6">
+          <ErrorBox>{error}</ErrorBox>
+        </div>
+      )}
       {!document && !error && <Spinner label="Loading…" />}
 
       {document && templates && (
-        <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-          <p className="text-sm text-zinc-500">Document</p>
-          <p className="mb-5 font-medium text-zinc-900">{document.filename}</p>
+        <div className={`px-6 py-6 ${surfaceClass}`}>
+          <p className="text-sm text-ink-soft">Document</p>
+          <p className="mt-0.5 font-medium text-ink">{document.filename}</p>
 
           {templates.length === 0 ? (
-            <p className="text-sm text-zinc-600">
+            <p className="mt-6 text-sm text-ink-soft">
               You need a template first.{" "}
-              <Link href="/templates" className="font-medium underline">
+              <Link href="/templates" className="font-medium text-accent underline-offset-2 hover:underline">
                 Create one
               </Link>
               .
             </p>
           ) : (
             <>
-              <label className="mb-1 block text-sm text-zinc-500" htmlFor="template">
+              <label className="mt-6 mb-1.5 block text-sm text-ink-soft" htmlFor="template">
                 Template
               </label>
               <select
@@ -74,7 +78,7 @@ export function ExtractView() {
                 value={templateId}
                 disabled={running}
                 onChange={(e) => setTemplateId(e.target.value)}
-                className="w-full max-w-md rounded-md border-0 bg-white px-3 py-2 text-sm ring-1 ring-inset ring-zinc-300"
+                className={`${inputClass} max-w-md`}
               >
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -83,14 +87,24 @@ export function ExtractView() {
                 ))}
               </select>
 
-              <div className="mt-5 flex items-center gap-4">
+              {selected && (
+                <p className="mt-4 flex flex-wrap gap-1.5">
+                  {selected.fields.map((field) => (
+                    <span key={field.key} className="rounded-full bg-wash px-2.5 py-0.5 text-xs text-ink-soft ring-1 ring-rule">
+                      {field.label}
+                    </span>
+                  ))}
+                </p>
+              )}
+
+              <div className="mt-6 flex flex-wrap items-center gap-4">
                 <button className={buttonClass} disabled={running || !templateId} onClick={() => void run()}>
                   Start extraction
                 </button>
                 {running && <Spinner label="Starting…" />}
                 {selected && !running && (
-                  <span className="text-sm text-zinc-500">
-                    Runs in the background, about {selected.fields.length * 3}–{selected.fields.length * 5} seconds.
+                  <span className="text-sm text-ink-soft">
+                    About {selected.fields.length * 3}–{selected.fields.length * 5} seconds on a local model.
                   </span>
                 )}
               </div>

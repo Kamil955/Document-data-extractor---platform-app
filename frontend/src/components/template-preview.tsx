@@ -11,7 +11,7 @@ function Segment({ segment, known }: { segment: PreviewSegment; known: Map<strin
       <span
         title={ok ? "Will be filled from the extraction" : "No field with this key: it will stay as it is"}
         className={`rounded px-1 font-mono text-[0.85em] ring-1 ring-inset ${
-          ok ? "bg-emerald-50 text-emerald-800 ring-emerald-600/30" : "bg-red-50 text-red-800 ring-red-600/30"
+          ok ? "bg-ok-wash text-ok ring-ok/25" : "bg-red-50 text-bad ring-red-600/30"
         }`}
       >
         {segment.text}
@@ -32,10 +32,10 @@ function Paragraph({ paragraph, known }: { paragraph: PreviewParagraph; known: M
   if (empty) return <div className="h-3" />;
   switch (paragraph.style) {
     case "title":
-      return <p className="mb-3 text-2xl font-bold text-zinc-900">{content}</p>;
+      return <p className="mb-3 text-2xl font-bold text-ink">{content}</p>;
     case "heading": {
       const size = paragraph.level <= 1 ? "text-xl" : paragraph.level === 2 ? "text-lg" : "text-base";
-      return <p className={`mt-4 mb-2 font-semibold text-zinc-900 ${size}`}>{content}</p>;
+      return <p className={`mt-4 mb-2 font-semibold text-ink ${size}`}>{content}</p>;
     }
     case "list":
       return (
@@ -58,7 +58,7 @@ export function PlaceholderChips({ placeholders }: { placeholders: PlaceholderIn
         <span
           key={p.key}
           className={`rounded px-2 py-1 font-mono text-xs ring-1 ring-inset ${
-            p.known ? "bg-emerald-50 text-emerald-800 ring-emerald-600/30" : "bg-red-50 text-red-800 ring-red-600/30"
+            p.known ? "bg-ok-wash text-ok ring-ok/25" : "bg-red-50 text-bad ring-red-600/30"
           }`}
         >
           {`{{${p.key}}}`}
@@ -71,8 +71,8 @@ export function PlaceholderChips({ placeholders }: { placeholders: PlaceholderIn
 export function TemplatePreviewView({ preview }: { preview: TemplatePreview }) {
   const known = new Map(preview.placeholders.map((p) => [p.key, p.known]));
   return (
-    <div className="rounded-md bg-white p-8 text-sm leading-relaxed text-zinc-800 shadow-sm ring-1 ring-zinc-200">
-      {preview.blocks.length === 0 && <p className="text-zinc-500">The document is empty.</p>}
+    <div className="rounded-md bg-white p-10 font-serif text-[15px] leading-relaxed text-ink ring-1 ring-rule">
+      {preview.blocks.length === 0 && <p className="text-ink-soft">The document is empty.</p>}
       {preview.blocks.map((block, i) =>
         block.type === "paragraph" ? (
           <Paragraph key={i} paragraph={block} known={known} />
@@ -82,7 +82,7 @@ export function TemplatePreviewView({ preview }: { preview: TemplatePreview }) {
               {block.rows.map((row, r) => (
                 <tr key={r}>
                   {row.map((cell, c) => (
-                    <td key={c} className="border border-zinc-300 px-2 py-1 align-top">
+                    <td key={c} className="border border-rule px-2 py-1 align-top">
                       {cell.map((paragraph, p) => (
                         <Paragraph key={p} paragraph={paragraph} known={known} />
                       ))}
@@ -95,7 +95,7 @@ export function TemplatePreviewView({ preview }: { preview: TemplatePreview }) {
         ),
       )}
       {preview.truncated && (
-        <p className="mt-4 rounded bg-amber-50 px-3 py-2 text-amber-900">
+        <p className="mt-4 rounded bg-warn-wash px-3 py-2 text-warn">
           The preview shows only the beginning of a long document. The whole file is still used for filling.
         </p>
       )}

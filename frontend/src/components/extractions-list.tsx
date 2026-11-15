@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ApiError, api } from "@/lib/api";
 import type { ExtractionStatus, ExtractionSummary } from "@/lib/types";
-import { Badge, ErrorBox } from "./ui";
+import { formatDate } from "@/lib/format";
+import { Badge, ErrorBox, type Tone, surfaceClass } from "./ui";
 
-const STATUS_STYLE: Record<ExtractionStatus, { label: string; className: string }> = {
-  pending: { label: "Waiting", className: "bg-zinc-100 text-zinc-700 ring-zinc-300" },
-  running: { label: "Running", className: "bg-blue-50 text-blue-800 ring-blue-600/20" },
-  completed: { label: "Done", className: "bg-emerald-50 text-emerald-800 ring-emerald-600/20" },
-  failed: { label: "Failed", className: "bg-red-50 text-red-800 ring-red-600/20" },
+const STATUS: Record<ExtractionStatus, { label: string; tone: Tone }> = {
+  pending: { label: "Waiting", tone: "neutral" },
+  running: { label: "Running", tone: "info" },
+  completed: { label: "Done", tone: "ok" },
+  failed: { label: "Failed", tone: "bad" },
 };
 
 // Extractions run in the background, so a person can leave the page: this list is the way back.
@@ -30,25 +31,25 @@ export function ExtractionsList({ documentId }: { documentId: string }) {
 
   return (
     <section className="mt-8">
-      <h2 className="mb-3 text-sm font-semibold text-zinc-900">Previous extractions</h2>
-      <ul className="divide-y divide-zinc-200 rounded-lg bg-white shadow-sm ring-1 ring-zinc-200">
+      <h2 className="mb-3 text-sm font-semibold text-ink">Previous extractions</h2>
+      <ul className={`divide-y divide-rule ${surfaceClass}`}>
         {items.map((item) => {
-          const style = STATUS_STYLE[item.status];
+          const status = STATUS[item.status];
           return (
             <li key={item.extraction_id}>
               <Link
                 href={`/extractions/${item.extraction_id}`}
-                className="flex items-center justify-between gap-4 px-4 py-3 text-sm hover:bg-zinc-50"
+                className="flex items-center justify-between gap-4 px-5 py-3.5 text-sm transition first:rounded-t-xl last:rounded-b-xl hover:bg-wash"
               >
                 <span>
-                  <span className="font-medium text-zinc-900">{item.template_name ?? "Custom fields"}</span>
-                  <span className="ml-2 text-zinc-400">{new Date(item.created_at).toLocaleString()}</span>
+                  <span className="font-medium text-ink">{item.template_name ?? "Custom fields"}</span>
+                  <span className="ml-2 text-ink-soft">{formatDate(item.created_at)}</span>
                 </span>
                 <span className="flex items-center gap-3">
-                  <span className="text-zinc-500">
+                  <span className="text-ink-soft">
                     {item.done}/{item.total} fields
                   </span>
-                  <Badge className={style.className}>{style.label}</Badge>
+                  <Badge tone={status.tone}>{status.label}</Badge>
                 </span>
               </Link>
             </li>

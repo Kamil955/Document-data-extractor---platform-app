@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ApiError, api } from "@/lib/api";
-import { STATE_LABEL, STATE_STYLE, fieldState } from "@/lib/field-state";
+import { STATE_LABEL, STATE_TONE, fieldState } from "@/lib/field-state";
 import type { Citation, FieldResult } from "@/lib/types";
 import { Badge, ErrorBox, buttonClass, inputClass, secondaryButtonClass } from "./ui";
 
@@ -13,26 +13,24 @@ function pageLabel(citation: Citation): string | null {
     : `p. ${citation.page_start}`;
 }
 
+// A quote from the source, set in the typeface of a contract: this is the evidence behind a
+// value. Teal rule = found word for word in the document; amber = it was not.
 function CitationView({ citation, onShow }: { citation: Citation; onShow: (citation: Citation) => void }) {
   const where = [pageLabel(citation), citation.section_path].filter(Boolean).join(" · ");
   return (
-    <blockquote
-      className={`rounded-md border-l-4 px-3 py-2 text-sm ${
-        citation.verified ? "border-emerald-500 bg-emerald-50/60" : "border-amber-500 bg-amber-50"
-      }`}
-    >
-      <p className="text-zinc-800">“{citation.quote}”</p>
-      <p className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-zinc-500">
-        <button className="font-medium text-zinc-700 underline hover:text-zinc-900" onClick={() => onShow(citation)}>
+    <blockquote className={`border-l-[3px] py-1 pl-4 ${citation.verified ? "border-ok" : "border-[#d98a1c]"}`}>
+      <p className="font-serif text-[15px] leading-relaxed text-ink">“{citation.quote}”</p>
+      <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-soft">
+        <button className="font-medium text-accent underline-offset-2 hover:underline" onClick={() => onShow(citation)}>
           Show in document
         </button>
-        {where || "location unknown"}
-        {!citation.verified && (
-          <span className="ml-2 font-medium text-amber-800">
-            This quote was not found word for word in the source: do not rely on it.
-          </span>
-        )}
+        <span>{where || "location unknown"}</span>
       </p>
+      {!citation.verified && (
+        <p className="mt-1.5 text-xs font-medium text-warn">
+          This quote was not found word for word in the source. Do not rely on it.
+        </p>
+      )}
     </blockquote>
   );
 }
@@ -73,63 +71,65 @@ export function FieldCard({
   }
 
   return (
-    <li className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-zinc-200">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="font-medium text-zinc-900">{field.label}</p>
-          <p className="font-mono text-xs text-zinc-400">{`{{${field.key}}}`}</p>
+    <li className="grid gap-x-10 gap-y-4 px-6 py-6 md:grid-cols-[13rem_1fr]">
+      <div>
+        <p className="font-medium text-ink">{field.label}</p>
+        <p className="mt-0.5 font-mono text-xs text-ink-faint">{`{{${field.key}}}`}</p>
+        <div className="mt-3">
+          <Badge tone={STATE_TONE[state]}>{STATE_LABEL[state]}</Badge>
         </div>
-        <Badge className={STATE_STYLE[state]}>{STATE_LABEL[state]}</Badge>
       </div>
 
-      <textarea
-        className={`${inputClass} min-h-[2.5rem] resize-y`}
-        rows={field.value.length > 90 ? 3 : 1}
-        value={draft}
-        placeholder={state === "missing" ? "Not found in the document. Type a value if you know it." : ""}
-        onChange={(e) => setDraft(e.target.value)}
-        readOnly={locked}
-        aria-label={field.label}
-      />
+      <div className="min-w-0">
+        <textarea
+          className={`${inputClass} min-h-[2.5rem] resize-y`}
+          rows={field.value.length > 90 ? 3 : 1}
+          value={draft}
+          placeholder={state === "missing" ? "Not found in the document. Type a value if you know it." : ""}
+          onChange={(e) => setDraft(e.target.value)}
+          readOnly={locked}
+          aria-label={field.label}
+        />
 
-      {!locked && (dirty || state === "check") && (
-        <div className="mt-2 flex gap-2">
-          {dirty ? (
-            <>
+        {!locked && (dirty || state === "check") && (
+          <div className="mt-3 flex items-center gap-2">
+            {dirty ? (
+              <>
+                <button className={buttonClass} disabled={saving} onClick={() => void save()}>
+                  Save value
+                </button>
+                <button className={secondaryButtonClass} disabled={saving} onClick={() => setDraft(field.value)}>
+                  Undo
+                </button>
+              </>
+            ) : (
               <button className={buttonClass} disabled={saving} onClick={() => void save()}>
-                Save value
+                Confirm value
               </button>
-              <button className={secondaryButtonClass} disabled={saving} onClick={() => setDraft(field.value)}>
-                Undo
-              </button>
-            </>
-          ) : (
-            <button className={buttonClass} disabled={saving} onClick={() => void save()}>
-              Confirm value
-            </button>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
-      {state === "check" && (
-        <p className="mt-2 text-xs text-amber-800">
-          The model found a value but no quote that proves it. Check it against the document, then confirm.
-        </p>
-      )}
-      {field.error && <p className="mt-2 text-xs text-red-700">{field.error}</p>}
-      {error && (
-        <div className="mt-2">
-          <ErrorBox>{error}</ErrorBox>
-        </div>
-      )}
+        {state === "check" && (
+          <p className="mt-3 text-sm text-warn">
+            The model found a value but no quote that proves it. Check it against the document, then confirm.
+          </p>
+        )}
+        {field.error && <p className="mt-3 text-sm text-bad">{field.error}</p>}
+        {error && (
+          <div className="mt-3">
+            <ErrorBox>{error}</ErrorBox>
+          </div>
+        )}
 
-      {field.citations.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {field.citations.map((citation, i) => (
-            <CitationView key={i} citation={citation} onShow={onShowSource} />
-          ))}
-        </div>
-      )}
+        {field.citations.length > 0 && (
+          <div className="mt-5 space-y-4">
+            {field.citations.map((citation, i) => (
+              <CitationView key={i} citation={citation} onShow={onShowSource} />
+            ))}
+          </div>
+        )}
+      </div>
     </li>
   );
 }

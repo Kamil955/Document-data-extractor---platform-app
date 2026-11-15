@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ApiError, api } from "@/lib/api";
 import { download } from "@/lib/download";
 import type { FillReport, Template } from "@/lib/types";
-import { ErrorBox, Spinner, buttonClass, secondaryButtonClass } from "./ui";
+import { ErrorBox, Spinner, buttonClass, secondaryButtonClass, surfaceClass } from "./ui";
 
 export function FillPanel({ extractionId, templateId }: { extractionId: string; templateId: string | null }) {
   const input = useRef<HTMLInputElement>(null);
@@ -43,9 +43,9 @@ export function FillPanel({ extractionId, templateId }: { extractionId: string; 
   }
 
   return (
-    <section className="mt-10 rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-      <h2 className="text-sm font-semibold text-zinc-900">Fill a Word template</h2>
-      <p className="mt-1 text-sm text-zinc-500">
+    <section className={`mt-10 px-6 py-6 ${surfaceClass}`}>
+      <h2 className="font-semibold text-ink">Fill a Word template</h2>
+      <p className="mt-1 text-sm text-ink-soft">
         Values you confirmed or corrected above are used. Missing values are marked yellow, unchecked ones turquoise.
       </p>
 
@@ -54,13 +54,13 @@ export function FillPanel({ extractionId, templateId }: { extractionId: string; 
           <button className={buttonClass} disabled={busy} onClick={() => void fill(null)}>
             Fill “{stored}” and download
           </button>
-          <Link href={`/templates/${template.id}`} className="text-sm text-zinc-500 underline hover:text-zinc-900">
+          <Link href={`/templates/${template.id}`} className="text-sm text-ink-soft underline hover:text-ink">
             Preview the template
           </Link>
         </div>
       )}
 
-      <p className="mt-4 text-sm text-zinc-500">
+      <p className="mt-4 text-sm text-ink-soft">
         {stored ? "Or use another file for this one time:" : (
           <>
             Upload a .docx with placeholders such as <code className="font-mono">{"{{governing_law}}"}</code>
@@ -85,7 +85,7 @@ export function FillPanel({ extractionId, templateId }: { extractionId: string; 
         </div>
       )}
       {report && (
-        <ul className="mt-4 space-y-1 text-sm text-zinc-700">
+        <ul className="mt-4 space-y-1 text-sm text-ink">
           <li>{report.filled} placeholders filled.</li>
           {report.unverified.length > 0 && <li>Not verified (turquoise): {report.unverified.join(", ")}</li>}
           {report.missing.length > 0 && <li>Not found (yellow): {report.missing.join(", ")}</li>}

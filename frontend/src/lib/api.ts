@@ -6,7 +6,10 @@ import type {
   FieldResult,
   FillReport,
   NewTemplate,
+  PreviewParagraph,
+  PreviewTable,
   Template,
+  TemplateContent,
   TemplatePreview,
 } from "./types";
 
@@ -28,7 +31,12 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
   try {
     response = await fetch(`${API_URL}${path}`, init);
   } catch {
-    throw new ApiError(0, `Cannot reach the API at ${API_URL}. Is the backend running?`);
+    // A browser also reports a server crash (HTTP 500) this way, because the error page has no
+    // CORS headers. So the hint names both causes.
+    throw new ApiError(
+      0,
+      `Cannot reach the API at ${API_URL}. Is the backend running? If it is, the request may have failed on the server: see "docker compose logs backend".`,
+    );
   }
   if (!response.ok) {
     // FastAPI sends {"detail": "..."} (or a list of validation errors for 422).
@@ -106,6 +114,18 @@ export const api = {
   },
 
   getTemplatePreview: (id: string) => json<TemplatePreview>(`/templates/${id}/preview`),
+
+  getTemplateContent: (id: string) => json<TemplateContent>(`/templates/${id}/content`),
+
+  // Saves the editor's document as the template's Word file.
+  putTemplateContent: (id: string, blocks: (PreviewParagraph | PreviewTable)[]) =>
+    json<Template>(`/templates/${id}/content`, jsonBody("PUT", { blocks })),
+
+  // Asks the language model to rewrite a passage ("make it more formal").
+  async rewrite(text: string, instruction: string, context: string | null): Promise<string> {
+    const body = await json<{ text: string }>("/templates/rewrite", jsonBody("POST", { text, instruction, context }));
+    return body.text;
+  },
 
   async deleteTemplate(id: string) {
     await request(`/templates/${id}`, { method: "DELETE" });
