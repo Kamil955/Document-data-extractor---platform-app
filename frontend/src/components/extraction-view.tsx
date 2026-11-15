@@ -5,9 +5,10 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError, api } from "@/lib/api";
 import { type FieldState, fieldState } from "@/lib/field-state";
-import type { Extraction, FieldResult } from "@/lib/types";
+import type { Citation, Extraction, FieldResult } from "@/lib/types";
 import { FieldCard } from "./field-card";
 import { FillPanel } from "./fill-panel";
+import { SourceViewer } from "./source-viewer";
 import { ErrorBox, PageHeader, ProgressBar, Spinner } from "./ui";
 
 type Filter = "all" | "review" | "missing";
@@ -23,6 +24,8 @@ export function ExtractionView() {
   const [extraction, setExtraction] = useState<Extraction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  // The citation whose source is open in the side panel (null = closed).
+  const [source, setSource] = useState<Citation | null>(null);
 
   useEffect(() => {
     api
@@ -121,11 +124,13 @@ export function ExtractionView() {
           .filter((field) => active.match(fieldState(field)))
           // key includes the saved value, so a card restarts its draft when the saved value changes.
           .map((field) => (
-            <FieldCard key={`${field.key}:${field.value}:${field.edited}`} extractionId={extraction.extraction_id} field={field} onSaved={replace} locked={working} />
+            <FieldCard key={`${field.key}:${field.value}:${field.edited}`} extractionId={extraction.extraction_id} field={field} onSaved={replace} onShowSource={setSource} locked={working} />
           ))}
       </ul>
 
       {!working && <FillPanel extractionId={extraction.extraction_id} />}
+
+      <SourceViewer citation={source} onClose={() => setSource(null)} />
     </>
   );
 }
