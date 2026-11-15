@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, api } from "@/lib/api";
 import type { FieldType, Template } from "@/lib/types";
-import { Badge, ErrorBox, PageHeader, Spinner, buttonClass, inputClass, secondaryButtonClass } from "./ui";
+import { Badge, EmptyState, ErrorBox, PageHeader, Spinner, buttonClass, inputClass, secondaryButtonClass, surfaceClass } from "./ui";
 
 const FIELD_TYPES: FieldType[] = ["text", "number", "date", "boolean"];
 
@@ -39,6 +39,8 @@ export function TemplatesView() {
   const [saving, setSaving] = useState(false);
   const wordInput = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  // The builder for a template from scratch is folded away until it is asked for.
+  const [building, setBuilding] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -82,6 +84,7 @@ export function TemplatesView() {
       setName("");
       setDescription("");
       setRows([emptyRow()]);
+      setBuilding(false);
       await refresh();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Saving failed");
@@ -117,138 +120,162 @@ export function TemplatesView() {
 
   return (
     <>
-      <PageHeader title="Templates" />
-      {error && <ErrorBox>{error}</ErrorBox>}
+      <PageHeader
+        title="Templates"
+        description="A template lists the fields to extract and, optionally, the Word document they are filled into."
+      >
+        <input
+          ref={wordInput}
+          type="file"
+          accept=".docx"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) void importDocx(file);
+          }}
+        />
+        {importing && <Spinner />}
+        <button
+          className={secondaryButtonClass}
+          disabled={importing}
+          title="Every {{placeholder}} in the file becomes a field"
+          onClick={() => wordInput.current?.click()}
+        >
+          From a Word file
+        </button>
+        <button className={buttonClass} onClick={() => setBuilding((open) => !open)} aria-expanded={building}>
+          {building ? "Close" : "New template"}
+        </button>
+      </PageHeader>
 
-      <section className="mb-6 rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-        <h2 className="text-sm font-semibold text-zinc-900">Create from a Word file</h2>
-        <p className="mt-1 text-sm text-zinc-500">
-          Upload a .docx that contains placeholders such as <code className="font-mono">{"{{governing_law}}"}</code>. Each
-          placeholder becomes a field, and the document is kept with the template. The name below (optional) is used if filled in.
-        </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <input
-            ref={wordInput}
-            type="file"
-            accept=".docx"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (file) void importDocx(file);
-            }}
-          />
-          <button className={buttonClass} disabled={importing} onClick={() => wordInput.current?.click()}>
-            Choose .docx file
-          </button>
-          {importing && <Spinner />}
+      {error && (
+        <div className="mb-6">
+          <ErrorBox>{error}</ErrorBox>
         </div>
-      </section>
+      )}
 
-      <section className="mb-10 rounded-lg bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-        <h2 className="mb-4 text-sm font-semibold text-zinc-900">New template from scratch</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <input className={inputClass} placeholder="Name, e.g. Contract basics" value={name} onChange={(e) => setName(e.target.value)} />
-          <input className={inputClass} placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
-        </div>
+      {building && (
+        <section className={`mb-8 px-6 py-6 ${surfaceClass}`}>
+          <h2 className="font-semibold text-ink">New template</h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Name the fields you want to read from a document. You can write the Word document afterwards.
+          </p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <input className={inputClass} placeholder="Name, e.g. Contract basics" value={name} onChange={(e) => setName(e.target.value)} aria-label="Template name" />
+            <input className={inputClass} placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} aria-label="Description" />
+          </div>
 
-        <div className="mt-5 space-y-3">
-          {rows.map((row, index) => (
-            <div key={index} className="grid gap-2 rounded-md bg-zinc-50 p-3 sm:grid-cols-12">
-              <input
-                className={`${inputClass} sm:col-span-4`}
-                placeholder="Field name, e.g. Governing law"
-                value={row.label}
-                onChange={(e) =>
-                  updateRow(index, {
-                    label: e.target.value,
-                    ...(row.keyTouched ? {} : { key: slugify(e.target.value) }),
-                  })
-                }
-              />
-              <input
-                className={`${inputClass} font-mono sm:col-span-3`}
-                placeholder="key"
-                title="Used as {{key}} in Word templates"
-                value={row.key}
-                onChange={(e) => updateRow(index, { key: e.target.value, keyTouched: true })}
-              />
-              <select
-                className={`${inputClass} sm:col-span-2`}
-                value={row.type}
-                onChange={(e) => updateRow(index, { type: e.target.value as FieldType })}
-              >
-                {FIELD_TYPES.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-              <button
-                className={`${secondaryButtonClass} sm:col-span-3`}
-                onClick={() => setRows((current) => (current.length > 1 ? current.filter((_, i) => i !== index) : current))}
-                disabled={rows.length === 1}
-              >
-                Remove
-              </button>
-              <input
-                className={`${inputClass} sm:col-span-12`}
-                placeholder="What to look for (optional): which state's law governs the agreement"
-                value={row.description}
-                onChange={(e) => updateRow(index, { description: e.target.value })}
-              />
-            </div>
-          ))}
-        </div>
+          <div className="mt-6 space-y-3">
+            {rows.map((row, index) => (
+              <div key={index} className="grid gap-2 rounded-lg bg-wash p-3 sm:grid-cols-12">
+                <input
+                  className={`${inputClass} sm:col-span-5`}
+                  placeholder="Field name, e.g. Governing law"
+                  aria-label="Field name"
+                  value={row.label}
+                  onChange={(e) =>
+                    updateRow(index, {
+                      label: e.target.value,
+                      ...(row.keyTouched ? {} : { key: slugify(e.target.value) }),
+                    })
+                  }
+                />
+                <input
+                  className={`${inputClass} font-mono sm:col-span-3`}
+                  placeholder="key"
+                  aria-label="Field key"
+                  title="Used as {{key}} in Word templates"
+                  value={row.key}
+                  onChange={(e) => updateRow(index, { key: e.target.value, keyTouched: true })}
+                />
+                <select
+                  className={`${inputClass} sm:col-span-2`}
+                  aria-label="Field type"
+                  value={row.type}
+                  onChange={(e) => updateRow(index, { type: e.target.value as FieldType })}
+                >
+                  {FIELD_TYPES.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+                <button
+                  className="rounded-md px-3 py-2 text-sm text-ink-soft transition hover:bg-bad-wash hover:text-bad disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-soft sm:col-span-2"
+                  onClick={() => setRows((current) => (current.length > 1 ? current.filter((_, i) => i !== index) : current))}
+                  disabled={rows.length === 1}
+                >
+                  Remove
+                </button>
+                <input
+                  className={`${inputClass} sm:col-span-12`}
+                  placeholder="What to look for (optional): which state's law governs the agreement"
+                  aria-label="What to look for"
+                  value={row.description}
+                  onChange={(e) => updateRow(index, { description: e.target.value })}
+                />
+              </div>
+            ))}
+          </div>
 
-        {duplicate && <p className="mt-3 text-sm text-red-700">Two fields use the key “{duplicate}”. Keys must be unique.</p>}
-        <div className="mt-4 flex items-center gap-3">
-          <button className={secondaryButtonClass} onClick={() => setRows((current) => [...current, emptyRow()])}>
-            Add field
-          </button>
-          <button className={buttonClass} disabled={!canSave} onClick={() => void save()}>
-            Save template
-          </button>
-          {saving && <Spinner />}
-        </div>
-      </section>
+          {duplicate && <p className="mt-3 text-sm text-bad">Two fields use the key “{duplicate}”. Keys must be unique.</p>}
+          <div className="mt-5 flex items-center gap-3">
+            <button className={secondaryButtonClass} onClick={() => setRows((current) => [...current, emptyRow()])}>
+              Add field
+            </button>
+            <button className={buttonClass} disabled={!canSave} onClick={() => void save()}>
+              Save template
+            </button>
+            {saving && <Spinner />}
+          </div>
+        </section>
+      )}
 
       {templates === null && !error && <Spinner label="Loading…" />}
       {templates && templates.length === 0 && (
-        <p className="text-sm text-zinc-500">No templates yet. Create the first one above.</p>
+        <EmptyState title="No templates yet">
+          Create one with <strong className="font-medium text-ink">New template</strong>, or start from a Word file that
+          already has {"{{placeholders}}"}.
+        </EmptyState>
       )}
-      <ul className="space-y-3">
-        {templates?.map((template) => (
-          <li key={template.id} className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-zinc-200">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="flex flex-wrap items-center gap-2 font-medium text-zinc-900">
-                  {template.name}
-                  {template.docx_filename ? (
-                    <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-600/20">Word document</Badge>
-                  ) : (
-                    <Badge className="bg-zinc-50 text-zinc-600 ring-zinc-500/20">No document</Badge>
-                  )}
-                </p>
-                {template.description && <p className="text-sm text-zinc-500">{template.description}</p>}
+      {templates && templates.length > 0 && (
+        <ul className={`divide-y divide-rule ${surfaceClass}`}>
+          {templates.map((template) => (
+            <li key={template.id} className="px-6 py-5">
+              <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2.5">
+                    <Link href={`/templates/${template.id}`} className="font-semibold text-ink hover:underline">
+                      {template.name}
+                    </Link>
+                    {template.docx_filename ? <Badge tone="ok">Word document</Badge> : <Badge>No document</Badge>}
+                  </p>
+                  {template.description && <p className="mt-1 text-sm text-ink-soft">{template.description}</p>}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Link href={`/templates/${template.id}`} className={secondaryButtonClass}>
+                    Open
+                  </Link>
+                  <button
+                    className="rounded-md px-3 py-2 text-sm text-ink-soft transition hover:bg-bad-wash hover:text-bad"
+                    onClick={() => void remove(template)}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Link href={`/templates/${template.id}`} className={secondaryButtonClass}>
-                  Open
-                </Link>
-                <button className={secondaryButtonClass} onClick={() => void remove(template)}>
-                  Delete
-                </button>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {template.fields.map((field) => (
-                <span key={field.key} title={field.description ?? undefined} className="rounded bg-zinc-100 px-2 py-1 font-mono text-xs text-zinc-700">
-                  {`{{${field.key}}}`}
-                </span>
-              ))}
-            </div>
-          </li>
-        ))}
-      </ul>
+              <p className="mt-3 flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-sm text-ink-soft">{template.fields.length} fields</span>
+                {template.fields.slice(0, 6).map((field) => (
+                  <span key={field.key} title={field.description ?? undefined} className="rounded bg-wash px-2 py-0.5 font-mono text-xs text-ink-soft ring-1 ring-rule">
+                    {field.key}
+                  </span>
+                ))}
+                {template.fields.length > 6 && <span className="text-xs text-ink-faint">+{template.fields.length - 6} more</span>}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   );
 }

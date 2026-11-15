@@ -174,7 +174,7 @@ function PdfSource({ citation }: { citation: Citation }) {
         >
           ←
         </button>
-        <span className="text-zinc-600">
+        <span className="text-ink-soft">
           Page {pageNumber}
           {pdf && ` of ${pdf.numPages}`}
         </span>
@@ -189,18 +189,18 @@ function PdfSource({ citation }: { citation: Citation }) {
       </div>
 
       {ready?.match === "partial" && (
-        <p className="mb-2 text-xs text-amber-800">
+        <p className="mb-2 text-xs text-warn">
           Only a part of the quote is highlighted: it probably continues on the neighbouring page.
         </p>
       )}
       {ready?.match === "none" && (
-        <p className="mb-2 text-xs text-amber-800">
+        <p className="mb-2 text-xs text-warn">
           The quote was not found as text on this page (the PDF&apos;s text can differ from what the model read).
           Read the page yourself.
         </p>
       )}
 
-      <div ref={holder} className="relative w-full overflow-hidden rounded-md bg-white shadow ring-1 ring-zinc-300">
+      <div ref={holder} className="relative w-full overflow-hidden rounded-md bg-white shadow ring-1 ring-rule">
         <canvas ref={canvas} className="block" />
         {/* Highlights sit on top of the canvas; mix-blend-multiply keeps the text readable. */}
         {ready?.boxes.map((box, i) => (
@@ -246,10 +246,10 @@ function TextSource({ citation }: { citation: Citation }) {
 
   return (
     <div>
-      <p className="mb-2 text-xs text-zinc-500">
+      <p className="mb-2 text-xs text-ink-soft">
         This file has no pages. The passage the model was given, with the quote marked:
       </p>
-      <p className="whitespace-pre-wrap rounded-md bg-white p-4 text-sm leading-relaxed text-zinc-800 shadow ring-1 ring-zinc-300">
+      <p className="whitespace-pre-wrap rounded-md bg-white p-4 text-sm leading-relaxed text-ink shadow ring-1 ring-rule">
         {range ? (
           <>
             {text.slice(0, start)}
@@ -278,19 +278,19 @@ export function SourceViewer({ citation, onClose }: { citation: Citation | null;
 
   return (
     <aside
-      className="fixed inset-y-0 right-0 z-40 flex w-full flex-col bg-zinc-100 shadow-2xl ring-1 ring-zinc-300 sm:w-[min(46rem,55vw)]"
+      className="fixed inset-y-0 right-0 z-40 flex w-full flex-col bg-wash shadow-2xl ring-1 ring-rule sm:w-[min(46rem,55vw)]"
       aria-label="Source document"
     >
-      <header className="flex items-start justify-between gap-3 border-b border-zinc-300 bg-white px-4 py-3">
+      <header className="flex items-start justify-between gap-3 border-b border-rule bg-white px-4 py-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-zinc-900">{citation.filename}</p>
-          {citation.section_path && <p className="truncate text-xs text-zinc-500">{citation.section_path}</p>}
+          <p className="truncate text-sm font-medium text-ink">{citation.filename}</p>
+          {citation.section_path && <p className="truncate text-xs text-ink-soft">{citation.section_path}</p>}
         </div>
         <button className={secondaryButtonClass} onClick={onClose}>
           Close
         </button>
       </header>
-      <div className="border-b border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700">“{citation.quote}”</div>
+      <div className="border-b border-rule bg-white px-4 py-2 text-sm text-ink">“{citation.quote}”</div>
       <div className="flex-1 overflow-y-auto p-4">
         {/* key: a different citation starts a fresh viewer instead of reusing the old state */}
         {isPdf ? (

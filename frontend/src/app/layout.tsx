@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Suspense } from "react";
+import { SiteNav } from "@/components/site-nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,20 +12,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
-        <header className="border-b border-zinc-200 bg-white">
-          <nav className="mx-auto flex max-w-5xl items-center gap-6 px-6 py-3 text-sm">
-            <Link href="/" className="font-semibold text-zinc-900">
-              Data extractor
-            </Link>
-            <Link href="/" className="text-zinc-600 hover:text-zinc-900">
-              Documents
-            </Link>
-            <Link href="/templates" className="text-zinc-600 hover:text-zinc-900">
-              Templates
-            </Link>
-          </nav>
-        </header>
-        <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+        {/* usePathname (the active link) is known only at request time: stream it in. */}
+        <Suspense fallback={<div className="h-14 border-b border-rule bg-white" />}>
+          <SiteNav />
+        </Suspense>
+        <main className="mx-auto max-w-5xl px-6 py-10">{children}</main>
       </body>
     </html>
   );

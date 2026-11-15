@@ -87,7 +87,7 @@ export function AiPanel({
         >
           {state === "done" || state === "error" ? "Try again" : "Rewrite"}
         </button>
-        <button type="button" onClick={onClose} aria-label="Close" className="rounded p-1 text-[var(--ink-soft)] hover:bg-zinc-100">
+        <button type="button" onClick={onClose} aria-label="Close" className="rounded p-1 text-[var(--ink-soft)] hover:bg-wash">
           <CloseIcon />
         </button>
       </form>
@@ -129,7 +129,7 @@ export function AiPanel({
           <p className="mb-1.5 text-xs font-medium text-[var(--ink-soft)]">Suggestion</p>
           <p className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-[#f4f6fc] px-3 py-2.5 leading-relaxed">{result}</p>
           <div className="mt-3 flex items-center justify-end gap-2">
-            <button type="button" onClick={onClose} className="rounded-md px-3 py-1.5 text-[var(--ink-soft)] transition hover:bg-zinc-100">
+            <button type="button" onClick={onClose} className="rounded-md px-3 py-1.5 text-[var(--ink-soft)] transition hover:bg-wash">
               Discard
             </button>
             <button

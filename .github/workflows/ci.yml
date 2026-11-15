@@ -95,8 +95,9 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
-    needs: backend
+    needs: [backend, frontend]
     steps:
       - uses: actions/checkout@v6
-      # Build only (no push): proves the Dockerfile still works.
+      # Build only (no push): proves the Dockerfiles still work.
       - run: docker build -t contract-extractor-backend ./backend
+      - run: docker build -t contract-extractor-frontend ./frontend

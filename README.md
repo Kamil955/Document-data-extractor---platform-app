@@ -3,13 +3,16 @@
 Web app that ingests documents (contracts), answers questions about them with RAG,
 and fills DOCX templates with extracted data. Templates can be created in the app.
 
-Status: **stage 2, part 1** (upload, indexing, semantic search, retrieval evaluation). Roadmap: RAG with citations -> templates and field schema -> filling -> template builder -> online editor.
+Status: working end to end. Upload documents, extract template fields with a local model and
+cited, verified quotes, review and correct the values next to the source, write the Word
+template in the browser (with AI rewriting of selected text) and fill it. Open
+http://localhost:3000 after `docker compose up --build`.
 
 ## Run everything with Docker
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up --build         # web app on :3000, API on :8000
 curl localhost:8000/health        # {"status":"ok"}
 curl localhost:8000/health/ready  # {"status":"ready"}
 
@@ -228,12 +231,21 @@ the cited passage as text for Word files. The highlight is found by comparing le
 only, so differences in line breaks, hyphenation and spacing between the PDF and the text the
 model saw do not matter; if the quote cannot be found on the page, the panel says so.
 
+The web app is part of `docker compose up` (service `frontend`, a production build served on
+port 3000). For development with hot reload, stop that service and run it from source:
+
 ```bash
 docker compose up -d --build   # the API must be running
+docker compose stop frontend
 cd frontend
 npm ci
 npm run dev                    # http://localhost:3000
 ```
+
+The image is built in three stages (install, build, run) from Next.js's `standalone` output,
+so it holds only the server and what it needs. `NEXT_PUBLIC_API_URL` is compiled into the
+page at build time: set it (in `.env` or the environment) before `docker compose build` when the
+API is not at http://localhost:8000 for the browser.
 
 The API address is `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). The API allows
 the origin `http://localhost:3000` (CORS); to serve the frontend from another origin set

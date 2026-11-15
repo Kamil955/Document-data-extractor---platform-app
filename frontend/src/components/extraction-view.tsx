@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError, api } from "@/lib/api";
@@ -9,7 +8,7 @@ import type { Citation, Extraction, FieldResult } from "@/lib/types";
 import { FieldCard } from "./field-card";
 import { FillPanel } from "./fill-panel";
 import { SourceViewer } from "./source-viewer";
-import { ErrorBox, PageHeader, ProgressBar, Spinner } from "./ui";
+import { ErrorBox, PageHeader, ProgressBar, Spinner, surfaceClass } from "./ui";
 
 type Filter = "all" | "review" | "missing";
 
@@ -64,30 +63,43 @@ export function ExtractionView() {
   const count = (match: (s: FieldState) => boolean) => states.filter(match).length;
   const active = FILTERS.find((f) => f.id === filter) ?? FILTERS[0];
 
+  const verified = count((s) => s === "verified");
+  const confirmed = count((s) => s === "edited");
+  const check = count((s) => s === "check" || s === "error");
+  const missing = count((s) => s === "missing");
+  const settled = verified + confirmed;
+  // The segments of the summary bar, in the order a person reads them.
+  const segments = [
+    { label: "Verified", n: verified, bar: "bg-ok" },
+    { label: "Confirmed by you", n: confirmed, bar: "bg-accent" },
+    { label: "Needs check", n: check, bar: "bg-[#d98a1c]" },
+    { label: "Not found", n: missing, bar: "bg-ink-faint/50" },
+  ];
+
   return (
     <>
-      <PageHeader title="Review extracted data">
-        <Link href={`/documents/${extraction.document_id}`} className="text-sm text-zinc-600 hover:text-zinc-900">
-          ← Run again
-        </Link>
-      </PageHeader>
+      <PageHeader
+        title="Review extracted data"
+        description="Check every value against the quote behind it. Confirm or correct it, then fill your Word template."
+        back={{ href: `/documents/${extraction.document_id}`, label: "Document" }}
+      />
 
       {working && (
-        <div className="mb-5 rounded-lg bg-white p-4 shadow-sm ring-1 ring-zinc-200">
-          <p className="mb-2 text-sm text-zinc-700">
+        <div className={`mb-6 px-6 py-5 ${surfaceClass}`}>
+          <p className="mb-3 text-sm text-ink">
             {extraction.status === "pending"
               ? "Waiting for the worker to start…"
               : `Reading the document: ${extraction.results.length} of ${extraction.total} fields done.`}
           </p>
           <ProgressBar done={extraction.results.length} total={extraction.total} />
-          <p className="mt-2 text-xs text-zinc-500">
+          <p className="mt-3 text-sm text-ink-soft">
             You can leave this page: the extraction continues and is listed on the document.
           </p>
         </div>
       )}
 
       {extraction.status === "failed" && (
-        <div className="mb-5">
+        <div className="mb-6">
           <ErrorBox>
             The extraction failed after {extraction.results.length} of {extraction.total} fields:{" "}
             {extraction.error ?? "unknown error"}
@@ -95,31 +107,43 @@ export function ExtractionView() {
         </div>
       )}
 
-      <p className="mb-4 text-sm text-zinc-600">
-        {count((s) => s === "verified" || s === "edited")} of {extraction.total} fields are verified or confirmed.
-        {count((s) => s === "check" || s === "error") > 0 && (
-          <strong className="ml-1 text-amber-800">{count((s) => s === "check" || s === "error")} need your check.</strong>
-        )}
-        <span className="ml-2 text-zinc-400">Model: {extraction.model}</span>
-      </p>
+      <div className={`mb-6 px-6 py-5 ${surfaceClass}`}>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+          <p className="text-lg font-semibold tracking-[-0.01em] text-ink">
+            {settled} of {extraction.total} fields verified or confirmed
+          </p>
+          <p className="text-xs text-ink-faint">Model: {extraction.model}</p>
+        </div>
+        <div className="mt-4 flex h-2 w-full gap-0.5 overflow-hidden rounded-full bg-rule" role="img" aria-label={segments.map((x) => `${x.n} ${x.label.toLowerCase()}`).join(", ")}>
+          {segments.map((x) => x.n > 0 && <div key={x.label} className={x.bar} style={{ flexGrow: x.n }} />)}
+        </div>
+        <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-soft">
+          {segments.map((x) => (
+            <li key={x.label} className="flex items-center gap-1.5">
+              <span className={`h-2 w-2 rounded-full ${x.bar}`} aria-hidden />
+              {x.n} {x.label.toLowerCase()}
+            </li>
+          ))}
+        </ul>
+      </div>
 
-      <div className="mb-5 flex gap-2" role="tablist">
+      <div className="mb-4 inline-flex rounded-lg bg-white p-0.5 ring-1 ring-rule" role="tablist">
         {FILTERS.map((f) => (
           <button
             key={f.id}
             role="tab"
             aria-selected={filter === f.id}
             onClick={() => setFilter(f.id)}
-            className={`rounded-full px-3 py-1 text-sm ring-1 ring-inset ${
-              filter === f.id ? "bg-zinc-900 text-white ring-zinc-900" : "bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50"
+            className={`rounded-md px-3.5 py-1.5 text-sm transition ${
+              filter === f.id ? "bg-ink font-medium text-white" : "text-ink-soft hover:text-ink"
             }`}
           >
-            {f.label} ({count(f.match)})
+            {f.label} <span className={filter === f.id ? "text-white/70" : "text-ink-faint"}>{count(f.match)}</span>
           </button>
         ))}
       </div>
 
-      <ul className="space-y-3">
+      <ul className={`divide-y divide-rule ${surfaceClass}`}>
         {extraction.results
           .filter((field) => active.match(fieldState(field)))
           // key includes the saved value, so a card restarts its draft when the saved value changes.

@@ -1,12 +1,44 @@
 @import "tailwindcss";
 
-/* System fonts: no network request at build time, so the build works offline and in CI. */
+/* One palette for the whole app, shared with the template editor. Cool blue-greys, one
+   ultramarine accent, and three status colours that always mean the same thing:
+   teal = verified against the source, amber = needs a human look, red = something broke. */
 @theme inline {
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  /* The typeface of a contract: used for anything that quotes or imitates a document. */
+  --font-serif: Charter, "Iowan Old Style", "Source Serif Pro", "Palatino Linotype", Georgia, serif;
+
+  --color-ink: #1a2033;
+  --color-ink-soft: #5b6478;
+  --color-ink-faint: #8a93a6;
+  --color-desk: #eef0f5;
+  --color-rule: #dde1ea;
+  --color-wash: #f5f6fa;
+  --color-accent: #2a3dc7;
+  --color-accent-wash: #e8ebfb;
+  --color-ok: #0b5f57;
+  --color-ok-wash: #e3f2ef;
+  --color-warn: #8a4b00;
+  --color-warn-wash: #fcefd6;
+  --color-bad: #9f1d2c;
+  --color-bad-wash: #fbe8ea;
 }
 
 body {
-  background: #fafafa;
-  color: #18181b;
+  background: var(--color-desk);
+  color: var(--color-ink);
   font-family: var(--font-sans);
+}
+
+/* Keyboard focus is always visible, in the accent colour. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
