@@ -56,7 +56,8 @@ services:
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
   worker:
-    # Background ingestion: parses documents, chunks them and calls Ollama for embeddings.
+    # Background jobs: indexes documents (parse, chunk, embed with Ollama) and runs
+    # extractions (one Ollama language-model call per field).
     # network_mode: host lets it reach Ollama on the host's localhost:11434 without exposing
     # Ollama (which has no authentication) to the whole LAN. The price: no service-name DNS,
     # so Postgres and floci-az are addressed through their published host ports.
@@ -66,6 +67,8 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-contract}:${POSTGRES_PASSWORD:-contract}@localhost:5432/${POSTGRES_DB:-contract}
       AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=bG9jYWwtZGV2LWtleQ==;BlobEndpoint=http://localhost:4577/devstoreaccount1;"
       OLLAMA_BASE_URL: http://localhost:11434
+      # The model that runs the extractions (the same setting as for the API).
+      LLM_MODEL: ${LLM_MODEL:-qwen3.5:9b}
     depends_on:
       postgres:
         condition: service_healthy

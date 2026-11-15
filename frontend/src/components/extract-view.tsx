@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError, api } from "@/lib/api";
 import type { DocumentItem, Template } from "@/lib/types";
+import { ExtractionsList } from "./extractions-list";
 import { ErrorBox, PageHeader, Spinner, buttonClass } from "./ui";
 
 export function ExtractView() {
@@ -35,7 +36,7 @@ export function ExtractView() {
       const extraction = await api.extract(id, templateId);
       router.push(`/extractions/${extraction.extraction_id}`);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Extraction failed");
+      setError(e instanceof ApiError ? e.message : "Could not start the extraction");
       setRunning(false);
     }
   }
@@ -84,16 +85,20 @@ export function ExtractView() {
 
               <div className="mt-5 flex items-center gap-4">
                 <button className={buttonClass} disabled={running || !templateId} onClick={() => void run()}>
-                  Run extraction
+                  Start extraction
                 </button>
-                {running && selected && (
-                  <Spinner label={`Reading the document… about ${selected.fields.length * 3}–${selected.fields.length * 5} seconds`} />
+                {running && <Spinner label="Starting…" />}
+                {selected && !running && (
+                  <span className="text-sm text-zinc-500">
+                    Runs in the background, about {selected.fields.length * 3}–{selected.fields.length * 5} seconds.
+                  </span>
                 )}
               </div>
             </>
           )}
         </div>
       )}
+      {document && <ExtractionsList documentId={id} />}
     </>
   );
 }

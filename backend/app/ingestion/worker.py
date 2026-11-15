@@ -1,5 +1,4 @@
 import asyncio
-import enum
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -12,18 +11,16 @@ from app.core.db import SessionLocal, engine
 from app.embeddings.base import Embedder, EmbedderUnavailableError
 from app.embeddings.ollama import OllamaEmbedder
 from app.ingestion.chunking import chunk_blocks
+from app.jobs.extraction import run_extraction_once
+from app.jobs.result import RunResult
+from app.llm.base import LLM
+from app.llm.ollama import OllamaLLM
 from app.models import EMBEDDING_DIM, Chunk, Document, DocumentStatus
 from app.parsing import parse_document
 from app.storage.azure_blob import AzureBlobStorage
 from app.storage.base import BlobStorage
 
 logger = logging.getLogger(__name__)
-
-
-class RunResult(enum.Enum):
-    IDLE = "idle"  # nothing to do
-    PROCESSED = "processed"  # one document finished (indexed or failed)
-    DEFERRED = "deferred"  # embedding service down: document put back in the queue
 
 
 @dataclass(frozen=True)
@@ -163,24 +160,50 @@ async def run_once(
     return RunResult.PROCESSED
 
 
+async def _run_iteration(
+    storage: BlobStorage, embedder: Embedder, llm: LLM, settings: Settings
+) -> RunResult:
+    # A fresh session per iteration: a session left in a bad state (for example after a
+    # database error) cannot poison the next job.
+    async with SessionLocal() as session:
+        result = await run_once(session, storage, embedder, settings)
+        if result is RunResult.IDLE:
+            # Indexing comes first: a document must be indexed before anything can be
+            # extracted from it. One worker, one job at a time, because one local model
+            # on one GPU does one thing at a time anyway.
+            result = await run_extraction_once(session, embedder, llm, settings)
+        return result
+
+
 async def run_forever() -> None:
     settings = get_settings()
     storage = AzureBlobStorage(settings.azure_storage_connection_string, settings.blob_container)
     await storage.start()
     embedder = OllamaEmbedder(settings.ollama_base_url, settings.embedding_model, EMBEDDING_DIM)
-    logger.info("Worker started (model %s)", settings.embedding_model)
+    llm = OllamaLLM(
+        settings.ollama_base_url,
+        settings.llm_model,
+        num_ctx=settings.llm_num_ctx,
+        timeout_seconds=settings.llm_timeout_seconds,
+    )
+    logger.info("Worker started (models %s, %s)", settings.embedding_model, settings.llm_model)
     try:
         while True:
-            # A fresh session per iteration: a session left in a bad state (for example
-            # after a database error) cannot poison the next document.
-            async with SessionLocal() as session:
-                result = await run_once(session, storage, embedder, settings)
+            try:
+                result = await _run_iteration(storage, embedder, llm, settings)
+            except Exception:
+                # For example the database is restarting or a migration has not finished yet
+                # (docker compose starts the worker while the API still migrates). Dying here
+                # would take the container down; waiting and trying again heals itself.
+                logger.exception("Worker iteration failed, retrying")
+                result = RunResult.DEFERRED
             if result is RunResult.IDLE:
                 await asyncio.sleep(settings.worker_poll_seconds)
             elif result is RunResult.DEFERRED:
                 await asyncio.sleep(settings.worker_backoff_seconds)
-            # PROCESSED: loop again immediately, there may be more documents waiting.
+            # PROCESSED: loop again immediately, there may be more work waiting.
     finally:
+        await llm.close()
         await embedder.close()
         await storage.close()
         await engine.dispose()

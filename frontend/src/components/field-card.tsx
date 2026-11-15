@@ -38,10 +38,13 @@ export function FieldCard({
   extractionId,
   field,
   onSaved,
+  locked,
 }: {
   extractionId: string;
   field: FieldResult;
   onSaved: (field: FieldResult) => void;
+  // True while the worker is still running: the API refuses changes then (409).
+  locked: boolean;
 }) {
   const [draft, setDraft] = useState(field.value);
   const [saving, setSaving] = useState(false);
@@ -80,10 +83,11 @@ export function FieldCard({
         value={draft}
         placeholder={state === "missing" ? "Not found in the document. Type a value if you know it." : ""}
         onChange={(e) => setDraft(e.target.value)}
+        readOnly={locked}
         aria-label={field.label}
       />
 
-      {(dirty || state === "check") && (
+      {!locked && (dirty || state === "check") && (
         <div className="mt-2 flex gap-2">
           {dirty ? (
             <>

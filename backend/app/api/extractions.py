@@ -8,20 +8,32 @@ from app.api.deps import SessionDep, SettingsDep
 from app.api.documents import clean_filename, detect_content_type
 from app.core.content_types import DOCX_MIME
 from app.filling.docx import DocxFillError, FillValue, fill_docx
-from app.models import Extraction
+from app.models import Extraction, ExtractionStatus
 from app.schemas import ExtractResponse, FieldResultOut, ValueUpdate
 
 router = APIRouter(prefix="/extractions", tags=["extractions"])
 
 
-def _response(extraction: Extraction) -> ExtractResponse:
+def extraction_response(extraction: Extraction) -> ExtractResponse:
     return ExtractResponse(
         extraction_id=extraction.id,
         document_id=extraction.document_id,
         template_id=extraction.template_id,
         model=extraction.model,
+        status=extraction.status,
+        total=len(extraction.fields),
         results=[FieldResultOut(**item) for item in extraction.results],
+        error=extraction.error,
     )
+
+
+def _reject_while_running(extraction: Extraction) -> None:
+    # The worker rewrites `results` after every field. A correction made at the same moment
+    # would be overwritten (or overwrite the worker's), so changes wait until it is done.
+    if extraction.status in (ExtractionStatus.PENDING, ExtractionStatus.RUNNING):
+        raise HTTPException(
+            status_code=409, detail=f"extraction is still {extraction.status.value}, try again"
+        )
 
 
 @router.get("/{extraction_id}", response_model=ExtractResponse)
@@ -29,7 +41,7 @@ async def get_extraction(extraction_id: uuid.UUID, session: SessionDep) -> Extra
     extraction = await session.get(Extraction, extraction_id)
     if extraction is None:
         raise HTTPException(status_code=404, detail="extraction not found")
-    return _response(extraction)
+    return extraction_response(extraction)
 
 
 @router.patch("/{extraction_id}/values/{key}", response_model=FieldResultOut)
@@ -40,6 +52,7 @@ async def correct_value(
     extraction = await session.get(Extraction, extraction_id)
     if extraction is None:
         raise HTTPException(status_code=404, detail="extraction not found")
+    _reject_while_running(extraction)
     # A new list: SQLAlchemy does not notice changes made inside a JSONB value in place.
     results = [dict(item) for item in extraction.results]
     item = next((r for r in results if r["key"] == key), None)
@@ -66,6 +79,7 @@ async def fill_template(
     extraction = await session.get(Extraction, extraction_id)
     if extraction is None:
         raise HTTPException(status_code=404, detail="extraction not found")
+    _reject_while_running(extraction)
     if file.size is not None and file.size > settings.max_upload_bytes:
         raise HTTPException(status_code=413, detail="file too large")
     data = await file.read()

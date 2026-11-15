@@ -41,8 +41,15 @@ def main() -> int:
             json={"fields": request_fields, "limit": args.limit},
         )
         response.raise_for_status()
+        # The API answers at once (202); the worker fills the fields in. Poll until it is done.
+        body = response.json()
+        while body["status"] in ("pending", "running"):
+            time.sleep(2)
+            body = client.get(f"/extractions/{body['extraction_id']}").json()
     took = time.monotonic() - started
-    body = response.json()
+    if body["status"] == "failed":
+        print(f"Extraction failed: {body['error']}")
+        return 1
 
     correct = unsupported = wrongly_found = 0
     for item, result in zip(items, body["results"], strict=True):

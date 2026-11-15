@@ -39,6 +39,22 @@ export function Badge({ className, children }: { className: string; children: Re
   );
 }
 
+// `done` of `total` steps finished. Plain div instead of <progress>: it styles the same everywhere.
+export function ProgressBar({ done, total }: { done: number; total: number }) {
+  const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+  return (
+    <div
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={total}
+      aria-valuenow={done}
+      className="h-2 w-full overflow-hidden rounded-full bg-zinc-200"
+    >
+      <div className="h-full rounded-full bg-zinc-900 transition-all duration-500" style={{ width: `${percent}%` }} />
+    </div>
+  );
+}
+
 export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
